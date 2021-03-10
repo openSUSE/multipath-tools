@@ -192,7 +192,7 @@ bool update_pathvec_from_dm(vector pathvec, struct multipath *mpp,
 						must_reload = true;
 						continue;
 					}
-					condlog(2, "%s: adding new path %s",
+					condlog(3, "%s: adding new path %s",
 						mpp->alias, pp->dev);
 					store_path(pathvec, pp);
 					pp->tick = 1;
