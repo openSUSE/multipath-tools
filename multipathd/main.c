@@ -2680,7 +2680,9 @@ reconfigure (struct vectors * vecs)
 		conf->verbosity = verbosity;
 	if (bindings_read_only)
 		conf->bindings_read_only = bindings_read_only;
-	check_alias_settings(conf);
+
+	if (check_alias_settings(conf))
+		return 1;
 
 	uxsock_timeout = conf->uxsock_timeout;
 
@@ -3043,18 +3045,25 @@ child (__attribute__((unused)) void *param)
 		if (state == DAEMON_SHUTDOWN)
 			break;
 		if (state == DAEMON_CONFIGURE) {
+			int rc = 0;
+
 			pthread_cleanup_push(cleanup_lock, &vecs->lock);
 			lock(&vecs->lock);
 			pthread_testcancel();
 			if (!need_to_delay_reconfig(vecs)) {
-				reconfigure(vecs);
+				rc = reconfigure(vecs);
 			} else {
 				conf = get_multipath_config();
 				conf->delayed_reconfig = 1;
 				put_multipath_config(conf);
 			}
 			lock_cleanup_pop(vecs->lock);
-			post_config_state(DAEMON_IDLE);
+			if (!rc)
+				post_config_state(DAEMON_IDLE);
+			else {
+				condlog(0, "fatal error applying configuration - aborting");
+				exit_daemon();
+			}
 		}
 	}
 
