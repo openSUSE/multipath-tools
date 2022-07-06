@@ -175,25 +175,6 @@ get_target_port_group_support(int fd, unsigned int timeout)
 	return rc;
 }
 
-static int
-get_sysfs_pg83(struct path *pp, unsigned char *buff, int buflen)
-{
-	struct udev_device *parent = pp->udev;
-
-	while (parent) {
-		const char *subsys = udev_device_get_subsystem(parent);
-		if (subsys && !strncmp(subsys, "scsi", 4))
-			break;
-		parent = udev_device_get_parent(parent);
-	}
-
-	if (!parent || sysfs_get_vpd(parent, 0x83, buff, buflen) <= 0) {
-		PRINT_DEBUG("failed to read sysfs vpd pg83\n");
-		return -1;
-	}
-	return 0;
-}
-
 int
 get_target_port_group(struct path * pp, unsigned int timeout)
 {
@@ -212,32 +193,27 @@ get_target_port_group(struct path * pp, unsigned int timeout)
 	}
 
 	memset(buf, 0, buflen);
+	rc = do_inquiry(pp->fd, 1, 0x83, buf, buflen, timeout);
+	if (rc < 0)
+		goto out;
 
-	rc = get_sysfs_pg83(pp, buf, buflen);
-
-	if (rc < 0) {
+	scsi_buflen = (buf[2] << 8 | buf[3]) + 4;
+	/* Paranoia */
+	if (scsi_buflen >= USHRT_MAX)
+		scsi_buflen = USHRT_MAX;
+	if (buflen < scsi_buflen) {
+		free(buf);
+		buf = (unsigned char *)malloc(scsi_buflen);
+		if (!buf) {
+			PRINT_DEBUG("malloc failed: could not allocate"
+				    "%u bytes\n", scsi_buflen);
+			return -RTPG_RTPG_FAILED;
+		}
+		buflen = scsi_buflen;
+		memset(buf, 0, buflen);
 		rc = do_inquiry(pp->fd, 1, 0x83, buf, buflen, timeout);
 		if (rc < 0)
 			goto out;
-
-		scsi_buflen = (buf[2] << 8 | buf[3]) + 4;
-		/* Paranoia */
-		if (scsi_buflen >= USHRT_MAX)
-			scsi_buflen = USHRT_MAX;
-		if (buflen < scsi_buflen) {
-			free(buf);
-			buf = (unsigned char *)malloc(scsi_buflen);
-			if (!buf) {
-				PRINT_DEBUG("malloc failed: could not allocate"
-					    "%u bytes\n", scsi_buflen);
-				return -RTPG_RTPG_FAILED;
-			}
-			buflen = scsi_buflen;
-			memset(buf, 0, buflen);
-			rc = do_inquiry(pp->fd, 1, 0x83, buf, buflen, timeout);
-			if (rc < 0)
-				goto out;
-		}
 	}
 
 	vpd83 = (struct vpd83_data *) buf;
