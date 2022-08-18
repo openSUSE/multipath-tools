@@ -951,11 +951,6 @@ main (int argc, char *argv[])
 		exit(RTVL_FAIL);
 	}
 
-	if (check_alias_settings(conf)) {
-		fprintf(stderr, "fatal configuration error, aborting");
-		exit(RTVL_FAIL);
-	}
-
 	if (optind < argc) {
 		dev = MALLOC(FILE_NAME_SIZE);
 
@@ -982,20 +977,9 @@ main (int argc, char *argv[])
 
 	libmp_udev_set_sync_support(1);
 
-	if (init_checkers(conf->multipath_dir)) {
-		condlog(0, "failed to initialize checkers");
-		goto out;
-	}
-	if (init_prio(conf->multipath_dir)) {
-		condlog(0, "failed to initialize prioritizers");
-		goto out;
-	}
-
 	if ((cmd == CMD_LIST_SHORT || cmd == CMD_LIST_LONG) && enable_foreign)
 		conf->enable_foreign = strdup("");
 
-	/* Failing here is non-fatal */
-	init_foreign(conf->multipath_dir, conf->enable_foreign);
 	if (cmd == CMD_USABLE_PATHS) {
 		r = check_usable_paths(conf, dev, dev_type) ?
 			RTVL_FAIL : RTVL_OK;
@@ -1029,6 +1013,23 @@ main (int argc, char *argv[])
 	case NOT_DELEGATED:
 		break;
 	}
+
+	if (check_alias_settings(conf)) {
+		fprintf(stderr, "fatal configuration error, aborting");
+		exit(RTVL_FAIL);
+	}
+
+	if (init_checkers(conf->multipath_dir)) {
+		condlog(0, "failed to initialize checkers");
+		goto out;
+	}
+	if (init_prio(conf->multipath_dir)) {
+		condlog(0, "failed to initialize prioritizers");
+		goto out;
+	}
+
+	/* Failing here is non-fatal */
+	init_foreign(conf->multipath_dir, conf->enable_foreign);
 
 	if (cmd == CMD_RESET_WWIDS) {
 		struct multipath * mpp;
