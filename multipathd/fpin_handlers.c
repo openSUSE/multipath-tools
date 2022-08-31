@@ -495,7 +495,7 @@ void *fpin_fabric_notification_receiver(__attribute__((unused))void *unused)
 	fd = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_SCSITRANSPORT);
 	if (fd < 0) {
 		condlog(0, "fc socket error %ld", fd);
-		return NULL;
+		goto out1;
 	}
 
 	pthread_cleanup_push(close_fd, (void *)fd);
@@ -535,6 +535,7 @@ void *fpin_fabric_notification_receiver(__attribute__((unused))void *unused)
 	}
 out:
 	pthread_cleanup_pop(1);
+out1:
 	pthread_cleanup_pop(1);
 	pthread_cleanup_pop(1);
 	return NULL;
