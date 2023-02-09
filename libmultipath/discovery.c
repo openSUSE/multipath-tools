@@ -2020,7 +2020,7 @@ get_udev_uid(struct path * pp, char *uid_attribute, struct udev_device *udev)
 	const char *value;
 
 	value = udev_device_get_property_value(udev, uid_attribute);
-	if (!value || strlen(value) == 0)
+	if ((!value || strlen(value) == 0) && pp->can_use_env_uid)
 		value = getenv(uid_attribute);
 	if (value && strlen(value)) {
 		len = strlcpy(pp->wwid, value, WWID_SIZE);

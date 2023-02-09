@@ -331,6 +331,7 @@ struct path {
 	int marginal;
 	int vpd_vendor_id;
 	int recheck_wwid;
+	bool can_use_env_uid;
 	/* configlet pointers */
 	vector hwe;
 	struct gen_path generic_path;
