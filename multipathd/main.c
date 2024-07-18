@@ -733,7 +733,7 @@ coalesce_maps(struct vectors *vecs, vector nmpv)
 {
 	struct multipath * ompp;
 	vector ompv = vecs->mpvec;
-	unsigned int i, reassign_maps;
+	int i, reassign_maps;
 	struct config *conf;
 
 	conf = get_multipath_config();
@@ -1724,7 +1724,7 @@ static int
 map_discovery (struct vectors * vecs)
 {
 	struct multipath * mpp;
-	unsigned int i;
+	int i;
 
 	if (dm_get_maps(vecs->mpvec))
 		return 1;
@@ -1946,7 +1946,7 @@ static void
 mpvec_garbage_collector (struct vectors * vecs)
 {
 	struct multipath * mpp;
-	unsigned int i;
+	int i;
 
 	if (!vecs->mpvec)
 		return;
@@ -1990,7 +1990,7 @@ static void
 missing_uev_wait_tick(struct vectors *vecs)
 {
 	struct multipath * mpp;
-	unsigned int i;
+	int i;
 	int timed_out = 0;
 
 	vector_foreach_slot (vecs->mpvec, mpp, i) {
@@ -2015,7 +2015,7 @@ static void
 ghost_delay_tick(struct vectors *vecs)
 {
 	struct multipath * mpp;
-	unsigned int i;
+	int i;
 
 	vector_foreach_slot (vecs->mpvec, mpp, i) {
 		if (mpp->ghost_delay_tick <= 0)
