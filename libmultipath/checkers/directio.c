@@ -65,6 +65,7 @@ struct directio_context {
 	struct aio_group *aio_grp;
 	struct async_req *req;
 	struct timespec endtime;
+	bool waited_for;
 };
 
 static struct aio_group *
@@ -295,6 +296,7 @@ check_pending(struct directio_context *ct, struct timespec endtime)
 	int r;
 	struct timespec currtime, timeout;
 
+	ct->waited_for = true;
 	while(1) {
 		get_monotonic_time(&currtime);
 		timespecsub(&endtime, &currtime, &timeout);
@@ -346,6 +348,7 @@ check_state(int fd, struct directio_context *ct, int sync, int timeout_secs)
 		get_monotonic_time(&ct->endtime);
 		ct->endtime.tv_nsec += 1000 * 1000;
 		normalize_timespec(&ct->endtime);
+		ct->waited_for = false;
 	}
 	ct->running++;
 	if (!sync)
@@ -384,6 +387,13 @@ static void set_msgid(struct checker *c, int state)
 	default:
 		break;
 	}
+}
+
+bool libcheck_need_wait(struct checker *c)
+{
+	struct directio_context *ct = (struct directio_context *)c->context;
+	return (ct && ct->running && ct->req->state == PATH_PENDING &&
+		!ct->waited_for);
 }
 
 int libcheck_pending(struct checker *c)
