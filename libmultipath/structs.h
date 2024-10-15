@@ -360,7 +360,7 @@ struct path {
 	unsigned int checkint;
 	unsigned int tick;
 	int bus;
-	int offline;
+	int sysfs_state;
 	int state;
 	int dmstate;
 	int chkrstate;
