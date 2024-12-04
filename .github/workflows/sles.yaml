@@ -1,4 +1,4 @@
-name: compile and unit test on Leap
+name: compile and unit test on SUSE distros
 on:
   push:
     branches:
@@ -6,7 +6,9 @@ on:
       - factory
       - next
       - edge
+      - 'stable-*'
     paths:
+      - '.github/workflows/sles.yaml'
       - '**.h'
       - '**.c'
       - '**Makefile*'
@@ -18,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ['tumbleweed', '15.3', '15.4', '15.5']
+        os: ['tumbleweed', '15.3', '15.4', '15.5', '15.6', '12']
         # We have -arm too (for armv7l)
         # But tests fail with qemu-user (readdir() returns -EOVERFLOW), see
         # https://gitlab.com/qemu-project/qemu/-/issues/263
@@ -27,7 +29,26 @@ jobs:
         # this means replacing cmocka wrappers like __wrap_lseek() with
         # __wrap_lseek64()
         arch: ['x86_64', 'ppc64le', 'aarch64', 's390x']
+        exclude:
+          - os: 12
+            arch: aarch64
     steps:
+      - name: set repository and container name (TW)
+        run: |
+          echo "REPO_NAME=${{ matrix.os }}" >> $GITHUB_ENV
+          echo "CONT_NAME=multipath-build-opensuse-tumbleweed-latest" >> $GITHUB_ENV
+        if: ${{ matrix.os == 'tumbleweed' }}
+      - name: set repository and container name (SLE12)
+        run: |
+          echo "REPO_NAME=sle_12_sp5" >> $GITHUB_ENV
+          echo "CONT_NAME=multipath-build-sles-12-latest" >> $GITHUB_ENV
+        if: ${{ matrix.os == '12' }}
+      - name: set repository and container name (SLE15)
+        run: |
+          echo "${{ matrix.os }}" | \
+              sed -E 's/15.([0-9]*)/REPO_NAME=sle_15_sp\1/' >> $GITHUB_ENV
+          echo "CONT_NAME=multipath-build-sles-15-${{ matrix.os }}" >> $GITHUB_ENV
+        if: ${{ startswith( matrix.os, '15') }}
       - name: checkout
         uses: actions/checkout@v1
       - name: enable foreign arch
@@ -38,6 +59,29 @@ jobs:
         # See https://github.community/t/expressions-in-docker-uri/16271
         uses: mosteo-actions/docker-run@v1
         with:
+          image: registry.opensuse.org/home/mwilck/containers/${{ env.REPO_NAME }}/${{ env.CONT_NAME }}
           params: --platform ${{ matrix.arch }}
-          image: registry.opensuse.org/home/mwilck/containers/${{ matrix.os }}/containers/multipath-build
+          pull-params: "--platform ${{ matrix.arch }}"
           command: test
+
+      - name: remove output files
+        run: rm -f tests/directio.out tests/dmevents.out
+      - name: mpath
+        run: sudo modprobe dm_multipath
+      - name: brd
+        run: sudo modprobe brd rd_nr=1 rd_size=65536
+      - name: choose root tests (x86_64)
+        run: echo "ROOT_TESTS=directio.out dmevents.out" >> $GITHUB_ENV
+        if: ${{ matrix.arch == 'x86_64' }}
+      - name: choose root tests (other)
+        run: echo "ROOT_TESTS=dmevents.out" >> $GITHUB_ENV
+        if: ${{ matrix.arch != 'x86_64' }}
+      - name: run root tests
+        uses: mosteo-actions/docker-run@v1
+        with:
+          image: registry.opensuse.org/home/mwilck/containers/${{ env.REPO_NAME }}/${{ env.CONT_NAME }}
+          params: >
+            --platform ${{ matrix.arch }} --privileged
+            -v /dev/ram0:/dev/ram0 -e DIO_TEST_DEV=/dev/ram0
+          pull-params: "--platform ${{ matrix.arch }}"
+          command: -C tests ${{ env.ROOT_TESTS }}
