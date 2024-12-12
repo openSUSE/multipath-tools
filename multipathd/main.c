@@ -2995,6 +2995,7 @@ static void checker_finished(struct vectors *vecs, unsigned int ticks)
 	}
 	if (uev_timed_out && !need_to_delay_reconfig(vecs))
 		unblock_reconfigure();
+	check_removed_paths(vecs->pathvec);
 	partial_retrigger_tick(vecs->pathvec);
 }
 

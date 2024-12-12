@@ -565,16 +565,16 @@ static struct path *find_devt_in_pathgroups(const struct multipath *mpp,
 	return NULL;
 }
 
-static void check_removed_paths(const struct multipath *mpp, vector pathvec)
+void check_removed_paths(vector pathvec)
 {
 	struct path *pp;
 	int i;
 
 	vector_foreach_slot(pathvec, pp, i) {
-		if (pp->mpp == mpp &&
+		if (pp->mpp &&
 		    (pp->initialized == INIT_REMOVED ||
 		     pp->initialized == INIT_PARTIAL) &&
-		    !find_devt_in_pathgroups(mpp, pp->dev_t)) {
+		    !find_devt_in_pathgroups(pp->mpp, pp->dev_t)) {
 			condlog(2, "%s: %s: freeing path in %s state",
 				__func__, pp->dev,
 				pp->initialized == INIT_REMOVED ?
@@ -605,7 +605,6 @@ void sync_paths(struct multipath *mpp, vector pathvec)
 			orphan_path(pp, "path removed externally");
 		}
 	}
-	check_removed_paths(mpp, pathvec);
 	update_mpp_paths(mpp, pathvec);
 	vector_foreach_slot (mpp->paths, pp, i)
 		pp->mpp = mpp;

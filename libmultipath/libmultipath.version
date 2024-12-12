@@ -57,6 +57,7 @@ global:
 	change_foreign;
 	check_alias_settings;
 	check_daemon;
+	check_removed_paths;
 	checker_clear_message;
 	checker_disable;
 	checker_enable;
