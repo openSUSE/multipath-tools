@@ -70,6 +70,7 @@ enum discovery_mode {
 	__DI_BLACKLIST,
 	__DI_NOIO,
 	__DI_NOFALLBACK,
+	__DI_DISCOVERY,
 };
 
 #define DI_SYSFS	(1 << __DI_SYSFS)
@@ -80,6 +81,7 @@ enum discovery_mode {
 #define DI_BLACKLIST	(1 << __DI_BLACKLIST)
 #define DI_NOIO		(1 << __DI_NOIO) /* Avoid IO on the device */
 #define DI_NOFALLBACK	(1 << __DI_NOFALLBACK) /* do not allow wwid fallback */
+#define DI_DISCOVERY	(1 << __DI_DISCOVERY) /* set only during map discovery */
 
 #define DI_ALL		(DI_SYSFS  | DI_SERIAL | DI_CHECKER | DI_PRIO | \
 			 DI_WWID)
