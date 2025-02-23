@@ -86,6 +86,7 @@
 \bprin_resvdescr\b
 \bprout_param_descriptor\b
 \brq_servact\b
+\bSCHED_RT_PRIO\b
 \bssize_t\b
 \btrnptid_list\b
 \buxsock_timeout\b
