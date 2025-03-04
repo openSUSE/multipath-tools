@@ -688,7 +688,7 @@ fail:
 	if (setup_multipath(vecs, mpp))
 		return 1;
 
-	sync_map_state(mpp);
+	sync_map_state(mpp, false);
 
 	if (mpp->prflag != PRFLAG_SET)
 		update_map_pr(mpp);
@@ -806,7 +806,7 @@ sync_maps_state(vector mpvec)
 	struct multipath *mpp;
 
 	vector_foreach_slot (mpvec, mpp, i)
-		sync_map_state(mpp);
+		sync_map_state(mpp, false);
 }
 
 int
@@ -1344,7 +1344,7 @@ rescan:
 	if (setup_multipath(vecs, mpp))
 		goto fail; /* if setup_multipath fails, it removes the map */
 
-	sync_map_state(mpp);
+	sync_map_state(mpp, false);
 
 	if (retries >= 0) {
 		if (start_waiter)
@@ -1464,7 +1464,7 @@ ev_remove_path (struct path *pp, struct vectors * vecs, int need_do_map)
 		strlcpy(devt, pp->dev_t, sizeof(devt));
 		if (setup_multipath(vecs, mpp))
 			return REMOVE_PATH_MAP_ERROR;
-		sync_map_state(mpp);
+		sync_map_state(mpp, false);
 
 		if (retval == REMOVE_PATH_SUCCESS)
 			condlog(2, "%s: path removed from map %s",
@@ -1558,7 +1558,7 @@ int resize_map(struct multipath *mpp, unsigned long long size,
 out:
 	if (setup_multipath(vecs, mpp) != 0)
 		return 2;
-	sync_map_state(mpp);
+	sync_map_state(mpp, false);
 
 	return ret;
 }
@@ -1755,7 +1755,7 @@ map_discovery (struct vectors * vecs)
 		return 1;
 
 	vector_foreach_slot (vecs->mpvec, mpp, i)
-		if (update_multipath_table(mpp, vecs->pathvec, 0) != DMP_OK) {
+		if (update_multipath_table(mpp, vecs->pathvec, DI_DISCOVERY) != DMP_OK) {
 			remove_map(mpp, vecs->pathvec, vecs->mpvec);
 			i--;
 		}
@@ -1863,17 +1863,55 @@ uevqloop (void * ap)
 	pthread_cleanup_pop(1);
 	return NULL;
 }
+
+#ifdef USE_SYSTEMD
+static int get_systemd_sockets(long *ux_sock)
+{
+	int num = sd_listen_fds(0);
+
+	if (num > 2) {
+		condlog(3, "sd_listen_fds returned %d fds", num);
+		return -1;
+	} else if (num == 2) {
+		ux_sock[0] = SD_LISTEN_FDS_START + 0;
+		ux_sock[1] = SD_LISTEN_FDS_START + 1;
+		condlog(3, "using fd %ld and %ld from sd_listen_fds", ux_sock[0], ux_sock[1]);
+	} else if (num == 1) {
+		ux_sock[0] = SD_LISTEN_FDS_START + 0;
+		condlog(3, "using fd %ld from sd_listen_fds", ux_sock[0]);
+	}
+	return num;
+}
+#else
+static int get_systemd_sockets(long *ux_sock __attribute__((unused)))
+{
+	return 0;
+}
+#endif
+
+
 static void *
 uxlsnrloop (void * ap)
 {
-	long ux_sock;
+	long ux_sock[2] = {-1, -1};
+	int num;
+	const char *env_name = getenv("MULTIPATH_SOCKET_NAME");
 
 	pthread_cleanup_push(rcu_unregister, NULL);
 	rcu_register_thread();
 
-	ux_sock = ux_socket_listen(DEFAULT_SOCKET);
-	if (ux_sock == -1) {
-		condlog(1, "could not create uxsock: %d", errno);
+	num = get_systemd_sockets(ux_sock);
+	if (num < 1 && env_name != NULL) {
+		ux_sock[0] = ux_socket_listen(env_name);
+		num = 1;
+	}
+	if (num < 1) {
+		ux_sock[0] = ux_socket_listen(ABSTRACT_SOCKET);
+		ux_sock[1] = ux_socket_listen(PATHNAME_SOCKET);
+		num = 2;
+	}
+	if (ux_sock[0] == -1 && ux_sock[1] == -1) {
+		condlog(1, "could not create sockets: %d", errno);
 		exit_daemon();
 		goto out;
 	}
@@ -1898,7 +1936,7 @@ uxlsnrloop (void * ap)
 	       == DAEMON_CONFIGURE)
 		handle_signals(false);
 
-	uxsock_listen(ux_sock, ap);
+	uxsock_listen(num, ux_sock, ap);
 
 out_sock:
 	pthread_cleanup_pop(1); /* uxsock_cleanup */
@@ -2236,7 +2274,7 @@ int reload_and_sync_map(struct multipath *mpp, struct vectors *vecs)
 		ret = 1;
 	if (setup_multipath(vecs, mpp) != 0)
 		return 2;
-	sync_map_state(mpp);
+	sync_map_state(mpp, false);
 
 	return ret;
 }

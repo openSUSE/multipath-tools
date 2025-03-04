@@ -20,15 +20,18 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <poll.h>
+#include <stddef.h>
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
 
 #include "mpath_cmd.h"
+#include "mpath_fill_sockaddr.c"
 
 /*
  * keep reading until its all read
@@ -100,15 +103,11 @@ int mpath_connect__(int nonblocking)
 	size_t len;
 	struct sockaddr_un addr;
 	int flags = 0;
+	const char *const names[2] = {PATHNAME_SOCKET, ABSTRACT_SOCKET};
+	int name_idx = 0;
+	const char *env_name = getenv("MULTIPATH_SOCKET_NAME"), *name;
 
-	memset(&addr, 0, sizeof(addr));
-	addr.sun_family = AF_LOCAL;
-	addr.sun_path[0] = '\0';
-	strncpy(&addr.sun_path[1], DEFAULT_SOCKET, sizeof(addr.sun_path) - 1);
-	len = strlen(DEFAULT_SOCKET) + 1 + sizeof(sa_family_t);
-	if (len > sizeof(struct sockaddr_un))
-		len = sizeof(struct sockaddr_un);
-
+retry:
 	fd = socket(AF_LOCAL, SOCK_STREAM, 0);
 	if (fd == -1)
 		return -1;
@@ -119,12 +118,18 @@ int mpath_connect__(int nonblocking)
 			(void)fcntl(fd, F_SETFL, flags|O_NONBLOCK);
 	}
 
+	name = env_name ? env_name : names[name_idx];
+	len = mpath_fill_sockaddr__(&addr, name);
 	if (connect(fd, (struct sockaddr *)&addr, len) == -1) {
 		int err = errno;
 
 		close(fd);
-		errno = err;
-		return -1;
+		if (name != env_name && ++name_idx == 1)
+			goto retry;
+		else {
+			errno = err;
+			return -1;
+		}
 	}
 
 	if (nonblocking && flags != -1)

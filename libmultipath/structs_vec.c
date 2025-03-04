@@ -107,6 +107,9 @@ static void update_pathvec_from_dm(vector pathvec, struct multipath *mpp,
 	bool mpp_has_wwid;
 	bool must_reload = false;
 	bool pg_deleted = false;
+	bool map_discovery = !!(pathinfo_flags & DI_DISCOVERY);
+
+	pathinfo_flags &= ~DI_DISCOVERY;
 
 	if (!mpp->pg)
 		return;
@@ -193,7 +196,8 @@ static void update_pathvec_from_dm(vector pathvec, struct multipath *mpp,
 					rc = pathinfo(pp, conf,
 						      DI_SYSFS|DI_WWID|DI_BLACKLIST|DI_NOFALLBACK|pathinfo_flags);
 					pthread_cleanup_pop(1);
-					if (rc != PATHINFO_OK) {
+					if (rc == PATHINFO_FAILED ||
+					    (rc == PATHINFO_SKIPPED && !map_discovery)) {
 						condlog(1, "%s: error %d in pathinfo, discarding path",
 							pp->dev, rc);
 						vector_del_slot(pgp->paths, j--);
@@ -726,7 +730,7 @@ void set_no_path_retry(struct multipath *mpp)
 }
 
 void
-sync_map_state(struct multipath *mpp)
+sync_map_state(struct multipath *mpp, bool reinstate_only)
 {
 	struct pathgroup *pgp;
 	struct path *pp;
@@ -748,7 +752,8 @@ sync_map_state(struct multipath *mpp)
 			     pp->dmstate == PSTATE_UNDEF) &&
 			    (pp->state == PATH_UP || pp->state == PATH_GHOST))
 				dm_reinstate_path(mpp->alias, pp->dev_t);
-			else if ((pp->dmstate == PSTATE_ACTIVE ||
+			else if (!reinstate_only &&
+				 (pp->dmstate == PSTATE_ACTIVE ||
 				  pp->dmstate == PSTATE_UNDEF) &&
 				 (pp->state == PATH_DOWN ||
 				  pp->state == PATH_SHAKY)) {
