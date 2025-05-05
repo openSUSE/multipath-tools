@@ -460,10 +460,10 @@ static int mpath_prout_rel(struct multipath *mpp,int rq_servact, int rq_scope,
 	int count = 0;
 	int status = MPATH_PR_SUCCESS;
 	struct prin_resp resp;
-	struct prout_param_descriptor *pamp;
+	struct prout_param_descriptor *pamp = NULL;
 	struct prin_resp *pr_buff;
 	int length;
-	struct transportid *pptr;
+	struct transportid *pptr = NULL;
 
 	if (!mpp)
 		return MPATH_PR_DMMP_ERROR;
@@ -570,7 +570,7 @@ static int mpath_prout_rel(struct multipath *mpp,int rq_servact, int rq_scope,
 	pamp = (struct prout_param_descriptor *)malloc (length);
 	if (!pamp){
 		condlog (0, "%s: failed to alloc pr out parameter.", mpp->wwid);
-		goto out1;
+		goto out;
 	}
 
 	memset(pamp, 0, length);
@@ -580,6 +580,7 @@ static int mpath_prout_rel(struct multipath *mpp,int rq_servact, int rq_scope,
 		condlog (0, "%s: failed to alloc pr out transportid.", mpp->wwid);
 		goto out1;
 	}
+	pptr = pamp->trnptid_list[0];
 
 	if (get_be64(mpp->reservation_key)){
 		memcpy (pamp->key, &mpp->reservation_key, 8);
@@ -591,11 +592,10 @@ static int mpath_prout_rel(struct multipath *mpp,int rq_servact, int rq_scope,
 
 	if (status) {
 		condlog(0, "%s: failed to send CLEAR_SA", mpp->wwid);
-		goto out1;
+		goto out2;
 	}
 
 	pamp->num_transportid = 1;
-	pptr=pamp->trnptid_list[0];
 
 	for (i = 0; i < num; i++){
 		if (get_be64(mpp->reservation_key) &&
@@ -639,7 +639,7 @@ static int mpath_prout_rel(struct multipath *mpp,int rq_servact, int rq_scope,
 		status = mpath_prout_reg(mpp, MPATH_PROUT_REG_SA, rq_scope, rq_type, pamp, noisy);
 	}
 
-
+out2:
 	free(pptr);
 out1:
 	free (pamp);
