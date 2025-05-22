@@ -2615,6 +2615,7 @@ check_path (struct vectors * vecs, struct path * pp, unsigned int ticks)
 			else
 				LOG_MSG(2, pp);
 		}
+		pp->checkint = checkint;
 	}
 
 	pp->state = newstate;
