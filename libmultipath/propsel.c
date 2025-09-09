@@ -661,13 +661,12 @@ out:
 }
 
 /*
- * Current RDAC (NetApp E/EF Series) firmware relies
- * on periodic REPORT TARGET PORT GROUPS for
- * internal load balancing.
+ * Current RDAC (NetApp E/EF Series) firmware relies on periodic
+ * REPORT TARGET PORT GROUPS for internal load balancing.
  * Using the sysfs priority checker defeats this purpose.
  *
- * Moreover, NetApp would also prefer the RDAC checker over ALUA.
- * (https://listman.redhat.com/archives/dm-devel/2017-September/msg00326.html)
+ * Moreover, NetApp would also prefer the RDAC checker over ALUA:
+ * (https://lore.kernel.org/dm-devel/D4D7BCD8-EB06-4B76-920D-4D5101851498@netapp.com/)
  */
 static int
 check_rdac(struct path * pp)
@@ -754,9 +753,7 @@ int select_recheck_wwid(struct config *conf, struct path * pp)
 	pp_set_conf(recheck_wwid);
 	pp_set_default(recheck_wwid, DEFAULT_RECHECK_WWID);
 out:
-	if (pp->recheck_wwid == RECHECK_WWID_ON &&
-	    (pp->bus != SYSFS_BUS_SCSI ||
-	     !has_uid_fallback(pp))) {
+	if (pp->recheck_wwid == RECHECK_WWID_ON && !can_recheck_wwid(pp)) {
 		pp->recheck_wwid = RECHECK_WWID_OFF;
 		origin = "(setting: unsupported by device type/config)";
 	}

@@ -644,11 +644,45 @@ pr_register_active_paths(struct multipath *mpp)
 	}
 }
 
+static void
+save_offline_paths(const struct multipath *mpp, vector offline_paths)
+{
+	unsigned int i, j;
+	struct path *pp;
+	struct pathgroup *pgp;
+
+	vector_foreach_slot (mpp->pg, pgp, i)
+		vector_foreach_slot (pgp->paths, pp, j)
+			if (pp->initialized == INIT_OK &&
+			    pp->sysfs_state == PATH_DOWN)
+				/* ignore failures storing the paths. */
+				store_path(offline_paths, pp);
+}
+
+static void
+handle_orphaned_offline_paths(vector offline_paths)
+{
+	unsigned int i;
+	struct path *pp;
+
+	vector_foreach_slot (offline_paths, pp, i)
+		if (pp->mpp == NULL)
+			pp->add_when_online = true;
+}
+
+static void
+cleanup_reset_vec(struct vector_s **v)
+{
+	vector_reset(*v);
+}
+
 static int
 update_map (struct multipath *mpp, struct vectors *vecs, int new_map)
 {
 	int retries = 3;
 	char *params __attribute__((cleanup(cleanup_charp))) = NULL;
+	struct vector_s offline_paths_vec = { .allocated = 0 };
+	vector offline_paths __attribute__((cleanup(cleanup_reset_vec))) = &offline_paths_vec;
 
 retry:
 	condlog(4, "%s: updating new map", mpp->alias);
@@ -679,11 +713,14 @@ retry:
 	}
 
 fail:
-	if (new_map && (retries < 0 || wait_for_events(mpp, vecs))) {
+	if (new_map && wait_for_events(mpp, vecs)) {
 		condlog(0, "%s: failed to create new map", mpp->alias);
 		remove_map(mpp, vecs->pathvec, vecs->mpvec);
 		return 1;
 	}
+
+	if (new_map && retries < 0)
+		save_offline_paths(mpp, offline_paths);
 
 	if (setup_multipath(vecs, mpp))
 		return 1;
@@ -694,6 +731,9 @@ fail:
 		update_map_pr(mpp);
 	if (mpp->prflag == PRFLAG_SET)
 		pr_register_active_paths(mpp);
+
+	if (VECTOR_SIZE(offline_paths) != 0)
+		handle_orphaned_offline_paths(offline_paths);
 
 	if (retries < 0)
 		condlog(0, "%s: failed reload in new map update", mpp->alias);
@@ -764,10 +804,26 @@ coalesce_maps(struct vectors *vecs, vector nmpv)
 	vector_foreach_slot (ompv, ompp, i) {
 		condlog(3, "%s: coalesce map", ompp->alias);
 		if (!find_mp_by_wwid(nmpv, ompp->wwid)) {
+			struct pathgroup *pgp;
+			struct path *pp;
+			int j, k;
+
+			/*
+			 * set pp->mpp for all the old map's paths,
+			 * so that they can be properly removed
+			 */
+			vector_foreach_slot (ompp->pg, pgp, j)
+				vector_foreach_slot (pgp->paths, pp, k)
+					if (!pp->mpp)
+						pp->mpp = ompp;
 			/*
 			 * remove all current maps not allowed by the
 			 * current configuration
 			 */
+			ompp->retry_tick = 0;
+			ompp->no_path_retry = NO_PATH_RETRY_FAIL;
+			ompp->disable_queueing = 1;
+			dm_queue_if_no_path(ompp, 0);
 			if (dm_flush_map(ompp->alias) != DM_FLUSH_OK) {
 				condlog(0, "%s: unable to flush devmap",
 					ompp->alias);
@@ -2655,6 +2711,7 @@ update_path_state (struct vectors * vecs, struct path * pp)
 			else
 				LOG_MSG(2, pp);
 		}
+		pp->checkint = checkint;
 	}
 	if (pp->mpp->prio_update == PRIO_UPDATE_NONE &&
 	    (newstate == PATH_UP || newstate == PATH_GHOST))
@@ -2793,7 +2850,8 @@ check_uninitialized_path(struct path * pp, unsigned int ticks)
 	struct config *conf;
 
 	if (pp->initialized != INIT_NEW && pp->initialized != INIT_FAILED &&
-	    pp->initialized != INIT_MISSING_UDEV)
+	    pp->initialized != INIT_MISSING_UDEV &&
+	    !(pp->initialized == INIT_OK && pp->add_when_online))
 		return CHECK_PATH_SKIPPED;
 
 	if (pp->tick)
@@ -2849,7 +2907,7 @@ update_uninitialized_path(struct vectors * vecs, struct path * pp)
 	struct config *conf;
 
 	if (pp->initialized != INIT_NEW && pp->initialized != INIT_FAILED &&
-	    pp->initialized != INIT_MISSING_UDEV)
+	    !(pp->initialized == INIT_OK && pp->add_when_online))
 		return CHECK_PATH_SKIPPED;
 
 	newstate = get_new_state(pp);
@@ -2875,6 +2933,18 @@ update_uninitialized_path(struct vectors * vecs, struct path * pp)
 			free_path(pp);
 			return CHECK_PATH_REMOVED;
 		}
+	} else if (pp->initialized == INIT_OK && pp->add_when_online &&
+		   (newstate == PATH_UP || newstate == PATH_GHOST)) {
+		pp->add_when_online = false;
+		if (can_recheck_wwid(pp) && check_path_wwid_change(pp)) {
+			condlog(0, "%s: path wwid change detected. Removing",
+				pp->dev);
+			return handle_path_wwid_change(pp, vecs)?
+					CHECK_PATH_REMOVED :
+					CHECK_PATH_SKIPPED;
+		}
+		ev_add_path(pp, vecs, 1);
+		pp->tick = 1;
 	}
 	return CHECK_PATH_CHECKED;
 }
