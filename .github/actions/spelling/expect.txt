@@ -11,6 +11,7 @@ ata
 autoconfig
 autodetected
 autoresize
+backported
 barbie
 BINDIR
 blkid
@@ -55,6 +56,7 @@ dmraid
 dmsetup
 dracut
 EAGAIN
+ECKD
 emc
 Engenio
 EVPD
@@ -91,6 +93,8 @@ ifdef
 ifndef
 igroup
 img
+Infini
+Infinidat
 inotify
 inttypes
 ioctls
@@ -122,6 +126,7 @@ lpthread
 Lun
 lvm
 lvmteam
+Lyve
 Marzinski
 misdetection
 mpath
@@ -141,6 +146,7 @@ nompath
 NOSCAN
 Nosync
 nvme
+NFINIDAT
 OBJDEPS
 oneshot
 ontap
@@ -154,6 +160,7 @@ petabytes
 pgpolicy
 plugindir
 PNR
+ppc
 preferredip
 preferredsds
 prefixdir
@@ -163,6 +170,7 @@ prioritizer
 prkeys
 PROUT
 pthreads
+QSAN
 rdac
 rdma
 readcap
@@ -176,6 +184,7 @@ reconfig
 redhat
 restorequeueing
 retrigger
+RETRYABLE
 rhabarber
 rootprefix
 rootprefixdir
@@ -189,6 +198,7 @@ scsi
 SCST
 sda
 sdc
+Seagate
 setmarginal
 setprkey
 setprstatus

@@ -88,7 +88,7 @@ static struct hwentry default_hw[] = {
 	 */
 	{
 		/* Generic NVMe */
-		.vendor        = "NVM[eE]",
+		.vendor        = "^NVME",
 		.product       = ".*",
 		.uid_attribute = DEFAULT_NVME_UID_ATTRIBUTE,
 		.checker_name  = NONE,
@@ -97,8 +97,6 @@ static struct hwentry default_hw[] = {
 	},
 	/*
 	 * Apple
-	 *
-	 * Maintainer: Shyam Sundar <g.shyamsundar@yahoo.co.in>
 	 */
 	{
 		/* Xserve RAID */
@@ -398,7 +396,7 @@ static struct hwentry default_hw[] = {
 	},
 	{
 		/* PowerStore NVMe */
-		.vendor        = ".*",
+		.vendor        = "NVME",
 		.product       = "dellemc-powerstore",
 		.no_path_retry = 3,
 	},
@@ -409,6 +407,13 @@ static struct hwentry default_hw[] = {
 		.pgpolicy      = GROUP_BY_PRIO,
 		.prio_name     = PRIO_ALUA,
 		.pgfailback    = -FAILBACK_IMMEDIATE,
+	},
+	{
+		// EqualLogic PS Series
+		.vendor        = "EQLOGIC",
+		.product       = "100E-00",
+		.pgpolicy      = MULTIBUS,
+		.no_path_retry = 30,
 	},
 	/*
 	 * Fujitsu
@@ -472,7 +477,7 @@ static struct hwentry default_hw[] = {
 	 * Maintainer: Matthias Rudolph <Matthias.Rudolph@hitachivantara.com>
 	 */
 	{
-		/* USP-V, HUS VM, VSP, VSP G1X00 and VSP GX00 families / HPE XP */
+		/* USP-V, HUS VM, and VSP Series / HPE XP */
 		.vendor        = "(HITACHI|HP|HPE)",
 		.product       = "^OPEN-",
 		.pgpolicy      = GROUP_BY_PRIO,
@@ -493,6 +498,23 @@ static struct hwentry default_hw[] = {
 		.vendor        = "HITACHI",
 		.product       = "^DF600F",
 		.pgpolicy      = MULTIBUS,
+	},
+	{
+		/* VSP One SDS Block */
+		.vendor        = "HITACHI",
+		.product       = "Hi-SDS",
+		.pgpolicy      = GROUP_BY_PRIO,
+		.pgfailback    = -FAILBACK_IMMEDIATE,
+		.no_path_retry = 6,
+		.prio_name     = PRIO_ALUA,
+		.checker_name  = DIRECTIO,
+		.detect_checker = DETECT_CHECKER_OFF,
+	},
+	{
+		// VSP NVMe
+		.vendor        = "NVME",
+		.product       = "HITACHI SVOS-RF-System",
+		.no_path_retry = NO_PATH_RETRY_QUEUE,
 	},
 	/*
 	 * IBM
@@ -661,7 +683,7 @@ static struct hwentry default_hw[] = {
 	},
 	{
 		// Storwize V5000/V7000 lines / SAN Volume Controller (SVC)
-		// Flex System V7000 / FlashSystem V840/V9000 and 5x00/7x00/9x00
+		// Flex System V7000 / FlashSystem V840/V9000 and 5x00/7x00/9x00/Cx00
 		.vendor        = "IBM",
 		.product       = "^2145",
 		.no_path_retry = NO_PATH_RETRY_QUEUE,
@@ -679,7 +701,7 @@ static struct hwentry default_hw[] = {
 		/* PAV DASD ECKD */
 		.vendor        = "IBM",
 		.product       = "S/390 DASD ECKD",
-		.bl_product    = "S/390",
+		.bl_product    = "S/390 DASD ECKD",
 		.uid_attribute = "ID_UID",
 		.no_path_retry = NO_PATH_RETRY_QUEUE,
 		.pgpolicy      = MULTIBUS,
@@ -689,7 +711,7 @@ static struct hwentry default_hw[] = {
 		/* PAV DASD FBA */
 		.vendor        = "IBM",
 		.product       = "S/390 DASD FBA",
-		.bl_product    = "S/390",
+		.bl_product    = "S/390 DASD FBA",
 		.uid_attribute = "ID_UID",
 		.no_path_retry = NO_PATH_RETRY_QUEUE,
 		.pgpolicy      = MULTIBUS,
@@ -729,7 +751,7 @@ static struct hwentry default_hw[] = {
 	},
 	{
 		/* FlashSystem(RamSan) NVMe */
-		.vendor        = "NVMe",
+		.vendor        = "NVME",
 		.product       = "FlashSystem",
 		.no_path_retry = NO_PATH_RETRY_FAIL,
 	},
@@ -827,8 +849,6 @@ static struct hwentry default_hw[] = {
 	{
 		/*
 		 * SolidFir family
-		 *
-		 * Maintainer: PJ Waskiewicz <pj.waskiewicz@netapp.com>
 		 */
 		.vendor        = "SolidFir",
 		.product       = "SSD SAN",
@@ -857,8 +877,6 @@ static struct hwentry default_hw[] = {
 	 */
 		/*
 		 * Pillar Data / Oracle FS
-		 *
-		 * Maintainer: Srinivasan Ramani <srinivas.ramani@oracle.com>
 		 */
 	{
 		/* Axiom */
@@ -1107,9 +1125,8 @@ static struct hwentry default_hw[] = {
 	},
 	{
 		/* OceanStor NVMe */
-		.vendor        = "NVM[eE]",
+		.vendor        = "NVME",
 		.product       = "Huawei-XSG1",
-		.checker_name  = DIRECTIO,
 		.no_path_retry = 12,
 	},
 	/*
@@ -1123,22 +1140,25 @@ static struct hwentry default_hw[] = {
 	},
 	/*
 	 * Infinidat
-	 *
-	 * Maintainer: Arnon Yaari <arnony@infinidat.com>
 	 */
 	{
 		/* InfiniBox */
 		.vendor        = "NFINIDAT",
 		.product       = "InfiniBox",
 		.pgpolicy      = GROUP_BY_PRIO,
-		.pgfailback    = 30,
+		.pgfailback    = -FAILBACK_IMMEDIATE,
 		.prio_name     = PRIO_ALUA,
-		.selector      = "round-robin 0",
-		.rr_weight     = RR_WEIGHT_PRIO,
-		.no_path_retry = NO_PATH_RETRY_FAIL,
-		.minio         = 1,
-		.minio_rq      = 1,
+		.no_path_retry = NO_PATH_RETRY_QUEUE,
+		.flush_on_last_del = FLUSH_ALWAYS,
 		.fast_io_fail  = 15,
+		.dev_loss      = MAX_DEV_LOSS_TMO,
+		.detect_prio   = DETECT_PRIO_OFF,
+	},
+	{
+		// InfiniBox NVMe
+		.vendor        = "NVME",
+		.product       = "InfiniBox",
+		.no_path_retry = NO_PATH_RETRY_QUEUE,
 	},
 	/*
 	 * Kaminario
@@ -1297,6 +1317,15 @@ static struct hwentry default_hw[] = {
 		.prio_name     = PRIO_ALUA,
 		.no_path_retry = 30,
 	},
+	{
+		// Lyve Rackmount Receiver
+		.vendor        = "SEAGATE",
+		.product       = "STJX",
+		.pgpolicy      = GROUP_BY_PRIO,
+		.pgfailback    = -FAILBACK_IMMEDIATE,
+		.prio_name     = PRIO_ALUA,
+		.no_path_retry = 30,
+	},
 	/*
 	 * AccelStor
 	 */
@@ -1304,7 +1333,8 @@ static struct hwentry default_hw[] = {
 		/* NeoSapphire */
 		.vendor        = "AStor",
 		.product       = "NeoSapphire",
-		.pgpolicy      = MULTIBUS,
+		.pgpolicy      = GROUP_BY_PRIO,
+		.pgfailback    = -FAILBACK_IMMEDIATE,
 		.no_path_retry = 30,
 	},
 	/*
@@ -1329,6 +1359,71 @@ static struct hwentry default_hw[] = {
 		.pgfailback    = -FAILBACK_IMMEDIATE,
 		.prio_name     = PRIO_ALUA,
 		.no_path_retry = 30,
+	},
+	/*
+	 * Quantum
+	 */
+	{
+		/* StorNext QX/QXS Series */
+		.vendor        = "Quantum",
+		.product       = "(StorNext QX|QXS)",
+		.bl_product    = "cvfsctl",
+		.pgpolicy      = GROUP_BY_PRIO,
+		.pgfailback    = -FAILBACK_IMMEDIATE,
+		.prio_name     = PRIO_ALUA,
+		.no_path_retry = 18,
+	},
+	{
+		/* F/H Series */
+		.vendor        = "QUANTUM",
+		.product       = "^(F|P|H)[24]",
+		.pgpolicy      = GROUP_BY_PRIO,
+		.pgfailback    = -FAILBACK_IMMEDIATE,
+		.prio_name     = PRIO_ALUA,
+		.no_path_retry = 30,
+	},
+	{
+		/* F1000 */
+		.vendor        = "QUANTUM",
+		.product       = "^F1",
+		.pgpolicy      = GROUP_BY_SERIAL,
+		.no_path_retry = 30,
+	},
+	/*
+	 * Acronis
+	 */
+	{
+		// Cyber Infrastructure
+		.vendor        = "VSTORAGE",
+		.product       = "VSTOR-DISK",
+		.prio_name     = PRIO_ALUA,
+		.pgpolicy      = GROUP_BY_NODE_NAME,
+		.detect_prio   = DETECT_PRIO_OFF,
+		.features      = "2 pg_init_retries 50",
+		.pgfailback    = -FAILBACK_IMMEDIATE,
+		.flush_on_last_del = FLUSH_ALWAYS,
+		.no_path_retry = NO_PATH_RETRY_QUEUE,
+	},
+	/*
+	 * QSAN
+	 */
+	{
+		// XF / XCubeFAS / XCubeSAN / XN / XCubeNXT Series
+		.vendor        = "^Qsan",
+		.product       = ".*",
+		.pgpolicy      = GROUP_BY_PRIO,
+		.pgfailback    = -FAILBACK_IMMEDIATE,
+		.no_path_retry = 30,
+		.prio_args     = "exclusive_pref_bit",
+	},
+	/*
+	 * VAST Data
+	 */
+	{
+		// Block Subsystem NVMe
+		.vendor        = "NVME",
+		.product       = "VASTData",
+		.no_path_retry = NO_PATH_RETRY_QUEUE,
 	},
 	/*
 	 * EOL
