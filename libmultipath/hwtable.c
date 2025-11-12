@@ -1401,7 +1401,7 @@ static struct hwentry default_hw[] = {
 		.detect_prio   = DETECT_PRIO_OFF,
 		.features      = "2 pg_init_retries 50",
 		.pgfailback    = -FAILBACK_IMMEDIATE,
-		.flush_on_last_del = FLUSH_ALWAYS,
+		.flush_on_last_del = FLUSH_ENABLED,
 		.no_path_retry = NO_PATH_RETRY_QUEUE,
 	},
 	/*
