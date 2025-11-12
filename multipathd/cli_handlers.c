@@ -1117,8 +1117,7 @@ cli_reinstate(void * v, struct strbuf *reply, void * data)
 	 * the map (e.g. for failback, while handling a dm event).
 	 * If the path is still in PATH_DOWN state at that time, sync_map_state()
 	 * will call dm_fail_path() again.
-	 * Avoid that by setting the state to PATH_UNCHECKED and scheduling
-	 * a real path check asap.
+	 * Avoid that by setting the state to PATH_UNCHECKED.
 	 */
 	pp->state = PATH_UNCHECKED;
 	pp->tick = 1;
