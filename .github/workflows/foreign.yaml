@@ -8,7 +8,9 @@ on:
       - next
       - factory
       - sles*
+      - 'stable-*'
     paths:
+      - '.github/workflows/foreign.yaml'
       - '**.h'
       - '**.c'
       - '**Makefile*'
@@ -17,7 +19,9 @@ on:
     branches:
       - master
       - queue
+      - 'stable-*'
     paths:
+      - '.github/workflows/foreign.yaml'
       - '**.h'
       - '**.c'
       - '**Makefile*'
@@ -30,27 +34,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [bookworm, sid]
+        os: [bullseye, bookworm, trixie, sid]
         arch: [ppc64le, arm64, s390x]
+        exclude:
+          - os: bullseye
+            arch: ppc64le
+          - os: bullseye
+            arch: s390x
     container: ghcr.io/mwilck/multipath-cross-debian_cross-${{ matrix.os }}-${{ matrix.arch }}
     steps:
       - name: checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
       - name: build
-        run: make -j8 -Orecurse TESTDIR=/build/tests test-progs
-      - name: create binary archive
-        run: >
-          tar cfv binaries.tar
-          Makefile* config.mk
-          libmpathcmd/*.so* libmultipath/*.so* libmpathutil/*.so*
-          libmultipath/checkers/*.so libmultipath/prioritizers/*.so
-          libmultipath/foreign/*.so
-          tests/lib tests/*-test tests/Makefile tests/*.so*
+        run: make -j -Orecurse test-progs.tar
       - name: upload binary archive
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: cross-${{ matrix.os }}-${{ matrix.arch }}
-          path: binaries.tar
+          path: test-progs.tar
+          overwrite: true
 
   test:
     runs-on: ubuntu-22.04
@@ -58,8 +60,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [bookworm, sid]
+        os: [bullseye, bookworm, trixie, sid]
         arch: [ppc64le, arm64, s390x]
+        exclude:
+          - os: bullseye
+            arch: ppc64le
+          - os: bullseye
+            arch: s390x
     steps:
       - name: set container arch
         run: echo CONTAINER_ARCH="${{ matrix.arch }}" >> $GITHUB_ENV
@@ -68,19 +75,78 @@ jobs:
         run: echo CONTAINER_ARCH="arm/v7" >> $GITHUB_ENV
         if: ${{ matrix.arch == 'armhf' }}
       - name: download binary archive
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: cross-${{ matrix.os }}-${{ matrix.arch }}
       - name: unpack binary archive
-        run: tar xfv cross-${{ matrix.os }}-${{ matrix.arch }}/binaries.tar
+        run: tar xfv test-progs.tar
       - name: enable foreign arch
-        uses: dbhi/qus/action@main
+        uses: docker/setup-qemu-action@v2
+        with:
+          image: tonistiigi/binfmt:latest
       - name: run tests
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-run-debian-${{ matrix.os }}
-          guest-dir: /build
+          guest-dir: /__w/multipath-tools/multipath-tools
           host-dir: ${{ github.workspace }}
           command: -C tests
-          params: "--platform linux/${{ env.CONTAINER_ARCH }}"
+          params: >
+            --workdir /__w/multipath-tools/multipath-tools
+            --platform linux/${{ env.CONTAINER_ARCH }}
           pull-params: "--platform linux/${{ env.CONTAINER_ARCH }}"
+
+  root-test:
+    runs-on: ubuntu-22.04
+    needs: cross-build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [bullseye, bookworm, trixie, sid]
+        arch: [ppc64le, arm64, s390x]
+        exclude:
+          - os: bullseye
+            arch: ppc64le
+          - os: bullseye
+            arch: s390x
+    steps:
+      - name: mpath
+        run: sudo modprobe dm_multipath
+      - name: brd
+        run: sudo modprobe brd rd_nr=1 rd_size=65536
+      - name: set container arch
+        run: echo CONTAINER_ARCH="${{ matrix.arch }}" >> $GITHUB_ENV
+        if: ${{ matrix.arch != 'armhf' }}
+      - name: set container arch
+        run: echo CONTAINER_ARCH="arm/v7" >> $GITHUB_ENV
+        if: ${{ matrix.arch == 'armhf' }}
+      - name: download binary archive
+        uses: actions/download-artifact@v4
+        with:
+          name: cross-${{ matrix.os }}-${{ matrix.arch }}
+      - name: unpack binary archive
+        run: tar xfv test-progs.tar
+      - name: enable foreign arch
+        uses: docker/setup-qemu-action@v2
+        with:
+          image: tonistiigi/binfmt:latest
+      - name: run tests
+        uses: mosteo-actions/docker-run@v1
+        with:
+          image: ghcr.io/mwilck/multipath-run-debian-${{ matrix.os }}
+          guest-dir: /__w/multipath-tools/multipath-tools
+          host-dir: ${{ github.workspace }}
+          command: -C tests dmevents.out
+          params: >
+            --workdir /__w/multipath-tools/multipath-tools
+            --platform linux/${{ env.CONTAINER_ARCH }}
+            --privileged
+            -v /dev/ram0:/dev/ram0 -e DIO_TEST_DEV=/dev/ram0
+          pull-params: "--platform linux/${{ env.CONTAINER_ARCH }}"
+        id: root-test
+        continue-on-error: true
+      - name: show root test output
+        run: for o in tests/*.out; do echo "===== $o ====="; cat "$o"; done
+      - name: fail
+        run: /bin/false
+        if: ${{ steps.root-test.outcome == 'failure' }}

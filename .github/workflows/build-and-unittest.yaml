@@ -8,10 +8,12 @@ on:
       - next
       - factory
       - sles*
+      - 'stable-*'
   pull_request:
     branches:
       - master
       - queue
+      - 'stable-*'
 jobs:
   jammy:
     runs-on: ubuntu-22.04
@@ -21,7 +23,7 @@ jobs:
         rl: ['', 'libreadline', 'libedit']
         cc: [ gcc, clang ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: update
         run: sudo apt-get update
       - name: dependencies
@@ -68,15 +70,15 @@ jobs:
         run: rm -f tests/dmevents.out tests/directio.out
       - name: root-test
         run: sudo make DIO_TEST_DEV=/dev/zram$ZRAM test
-  focal:
-    runs-on: ubuntu-20.04
+  noble:
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         rl: ['', 'libreadline', 'libedit']
         cc: [ gcc, clang ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: mpath
         run: sudo modprobe dm_multipath
       - name: brd
@@ -89,6 +91,7 @@ jobs:
           make pkg-config valgrind
           libdevmapper-dev libreadline-dev libaio-dev libsystemd-dev
           libudev-dev libjson-c-dev liburcu-dev libcmocka-dev libedit-dev
+          libmount-dev linux-modules-extra-$(uname -r)
       - name: set CC
         run: echo CC=${{ matrix.cc }} >> $GITHUB_ENV
       - name: build

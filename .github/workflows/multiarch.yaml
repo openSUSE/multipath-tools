@@ -5,7 +5,11 @@ on:
       - master
       - queue
       - tip
+      - next
+      - edge
+      - 'stable-*'
     paths:
+      - '.github/workflows/multiarch.yaml'
       - '**.h'
       - '**.c'
       - '**Makefile*'
@@ -14,7 +18,9 @@ on:
     branches:
       - master
       - queue
+      - 'stable-*'
     paths:
+      - '.github/workflows/multiarch.yaml'
       - '**.h'
       - '**.c'
       - '**Makefile*'
@@ -34,6 +40,7 @@ jobs:
           - alpine
           - debian-sid
           - fedora-rawhide
+          - opensuse-tumbleweed
         arch: [amd64, ppc64le, aarch64, s390x, 386, arm/v7]
         exclude:
           - os: fedora-rawhide
@@ -42,9 +49,11 @@ jobs:
             arch: arm/v7
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: enable foreign arch
-        uses: dbhi/qus/action@main
+        uses: docker/setup-qemu-action@v2
+        with:
+          image: tonistiigi/binfmt:latest
       - name: compile and run unit tests
         uses: mosteo-actions/docker-run@v1
         with:
