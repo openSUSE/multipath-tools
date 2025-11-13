@@ -38,8 +38,7 @@ jobs:
           - debian-buster
           - debian-bullseye
           - debian-bookworm
-          - debian-trixie
-          - fedora-42
+          - fedora-39
           - opensuse-leap
     steps:
       - name: checkout
@@ -97,8 +96,7 @@ jobs:
           - debian-buster
           - debian-bullseye
           - debian-bookworm
-          - debian-trixie
-          - fedora-42
+          - fedora-39
           - opensuse-leap
     steps:
       - name: checkout
