@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - sles*
+      - 'slfo-*'
       - factory
       - next
       - edge

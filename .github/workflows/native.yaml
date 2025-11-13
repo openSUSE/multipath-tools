@@ -8,6 +8,7 @@ on:
       - next
       - factory
       - sles*
+      - 'slfo-*'
       - 'stable-*'
     paths:
       - '.github/workflows/native.yaml'
