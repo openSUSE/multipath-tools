@@ -1,5 +1,79 @@
 # multipath-tools Release Notes
 
+## Backported fixes from upstream 0.9.9 ... 0.10.5
+
+* Updates to the built-in hardware table:
+  - add some NVMe storage array (VASTData, Infinidat, HITACHI VSP)
+  - add QSAN
+  - add EqualLogic PS
+
+* Avoid a possible system hang during shutdown with queueing multipath maps,
+  which was introduced in 0.8.8.
+* Failed paths should be checked every `polling_interval`. In certain cases,
+  this wouldn't happen, because the check interval wasn't reset by multipathd.
+* It could happen that multipathd would accidentally release a SCSI persistent
+  reservation held by another node. Fix it.
+* After manually failing some paths and then reinstating them, sometimes
+  the reinstated paths were immediately failed again by multipathd.
+* Fix crash in foreign (nvme native multipath) code, present since 0.8.8.
+* Fix file descriptor leak in kpartx. This problem existed since 0.4.5.
+* Fix memory leak in error code path in libmpathpersist which existed
+  since 0.4.9.
+* Fix possible out-of-bounds memory access in vector code that existed
+  since 0.4.9.
+* Fix a possible NULL dereference in the iet prioritizer, existing since
+  0.4.9.
+* Fix an error check in the nvme foreign library, problem introduced in 0.7.8.
+
+* Updates to the built-in hardware table:
+  - Add Quantum devices
+  - Enable ALUA for AStor/NeoSapphire
+  - Update NFINIDAT/InfiniBox config
+  - Fix product blacklist of S/390 devices
+  - Add Seagate Lyve
+  - Add HITACHI VSP One SDS Block
+  - Add SCST (SCSI Target Subsystem for Linux)
+
+* Fix multipathd crash because of invalid path group index value, for example
+  if an invalid path device was removed from a map.
+  Fixes [#105](https://github.com/opensvc/multipath-tools/issues/105).
+  This issue existed since 0.4.5.
+* Fix the problem that `group_by_tpg` might be disabled if one or more
+  paths were offline during initial configuration.
+  This problem exists since 0.9.6.
+
+* Fixed the problem that devices with `no_path_retry fail` and no setting
+  for `dev_loss_tmo` might get the `dev_loss_tmo` set to 0, causing the
+  device to be deleted immediately in the event of a transport disruption.
+  This bug was introduced in 0.9.6.
+* Fixed the problem that, if there were multiple maps with deferred failback
+  (`failback` value > 0 in `multipath.conf`), some maps might fail back later
+  than configured. The problem existed since 0.9.6.
+* Removed a warning message that multipathd would print if systemd's
+  `WATCHDOG_USEC` environment variable had the value "0", which means that the
+  watchdog is simply disabled. This (minor) problem existed since 0.4.9.
+* Fixed a memory leak in the nvme foreign library. The bug existed since
+  0.7.8.
+* Fixed a problem in the marginal path detection algorithm that could cause
+  the io error check for a recently failed path to be delayed. This bug
+  existed since 0.7.4.
+
+* Fixed bug that caused queueing to be always disabled if flushing a map failed
+  (bug introduced in 0.9.8).
+* Fixed old mpathpersist bug leading to the error message "configured reservation
+  key doesn't match: 0x0" when `reservation_key` was configured in the
+  multipaths section of `multipath.conf`
+  (Fixes [#92](https://github.com/opensvc/multipath-tools/issues/92)).
+* Fixed output of `multipath -t` and `multipath -T` for the options
+  `force_sync` and `retrigger_tries`.
+  (Fixes [#88](https://github.com/opensvc/multipath-tools/pull/88))
+* Added hardware defaults for Huawei storage arrays and XSG1 vendors.
+* Fixed minor issues detected by coverity.
+* Fixed a minor bug in the config file parser
+  (Fixes [#93](https://github.com/opensvc/multipath-tools/pull/93)).
+
+* Fixed map failure counting for `no_path_retry > 0`.
+
 ## multipath-tools 0.9.8, 2024/02
 
 ### User-Visible Changes
