@@ -5,6 +5,9 @@ on:
       - master
       - queue
       - tip
+      - next
+      - factory
+      - sles*
       - 'stable-*'
   pull_request:
     branches:
