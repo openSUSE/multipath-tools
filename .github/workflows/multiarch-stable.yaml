@@ -26,7 +26,7 @@ on:
 jobs:
 
   build-old:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -38,20 +38,16 @@ jobs:
         arch: [386, arm/v7]
         include:
           - os: debian-trixie
-            arch: aarch64
-          - os: debian-trixie
             arch: s390x
           - os: debian-trixie
             arch: ppc64le
-          - os: debian-bookworm
-            arch: aarch64
           - os: debian-bookworm
             arch: s390x
           - os: debian-bookworm
             arch: ppc64le
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: enable foreign arch
         uses: docker/setup-qemu-action@v2
         with:

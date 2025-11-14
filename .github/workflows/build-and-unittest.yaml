@@ -8,6 +8,7 @@ on:
       - next
       - factory
       - sles*
+      - 'slfo-*'
       - 'stable-*'
   pull_request:
     branches:
@@ -16,14 +17,14 @@ on:
       - 'stable-*'
 jobs:
   jammy:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         rl: ['', 'libreadline', 'libedit']
         cc: [ gcc, clang ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: update
         run: sudo apt-get update
       - name: dependencies
@@ -78,7 +79,7 @@ jobs:
         rl: ['', 'libreadline', 'libedit']
         cc: [ gcc, clang ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: mpath
         run: sudo modprobe dm_multipath
       - name: brd
