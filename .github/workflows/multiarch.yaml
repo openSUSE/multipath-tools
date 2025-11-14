@@ -32,7 +32,7 @@ on:
 jobs:
 
   build-current:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -41,12 +41,15 @@ jobs:
           - debian-sid
           - fedora-rawhide
           - opensuse-tumbleweed
-        arch: [amd64, ppc64le, aarch64, s390x, 386, arm/v7]
+        arch: [ppc64le, s390x, 386, arm/v7]
         exclude:
           - os: fedora-rawhide
             arch: 386
           - os: fedora-rawhide
             arch: arm/v7
+        include:
+          - os: alpine
+            arch: aarch64
     steps:
       - name: checkout
         uses: actions/checkout@v4
