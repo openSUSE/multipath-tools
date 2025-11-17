@@ -39,7 +39,7 @@ jobs:
         with:
           ref: ${{ env.PARENT_TAG }}
       - name: build ABI for ${{ env.PARENT_TAG }}
-        run: make -j$(grep -c ^processor /proc/cpuinfo) -Orecurse abi
+        run: make -j$(nproc) -Orecurse abi
       - name: save ABI
         uses: actions/upload-artifact@v4
         with:
@@ -79,7 +79,7 @@ jobs:
           libmount-dev
       - name: check ABI of ${{ github.ref }} against ${{ env.PARENT_TAG }}
         id: check_abi
-        run: make -j$(grep -c ^processor /proc/cpuinfo) -Orecurse abi-test
+        run: make -j$(nproc) -Orecurse abi-test
         continue-on-error: true
       - name: save differences
         if: ${{ steps.check_abi.outcome != 'success' }}
