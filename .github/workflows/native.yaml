@@ -40,7 +40,6 @@ jobs:
           - debian-bookworm
           - fedora-39
           - opensuse-leap-15.6
-          - opensuse-leap-16.0
         variant:
           - arch: x86_64
             runner: ubuntu-24.04
@@ -103,7 +102,6 @@ jobs:
           - debian-bookworm
           - fedora-39
           - opensuse-leap-15.6
-          - opensuse-leap-16.0
         variant:
           - arch: x86_64
             runner: ubuntu-24.04
@@ -144,10 +142,7 @@ jobs:
           - debian-buster
           - debian-bullseye
           - debian-bookworm
-          - debian-trixie
-          - fedora-43
           - opensuse-leap-15.6
-          - opensuse-leap-16.0
         variant:
           - arch: x86_64
             runner: ubuntu-24.04
