@@ -66,7 +66,7 @@ jobs:
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: -j -Orecurse test
+          command: -j$(nproc) -Orecurse test
         continue-on-error: true
 
       - name: build and test (jessie)
@@ -76,7 +76,7 @@ jobs:
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: -j -Orecurse READLINE=libreadline test
+          command: -j$(nproc) -Orecurse READLINE=libreadline test
         continue-on-error: true
 
       - name: create ${{ env.ARCHIVE_TGT }}
@@ -148,7 +148,7 @@ jobs:
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
           params: -e CC=clang
-          command: -j -Orecurse test
+          command: -j$(nproc) -Orecurse test
         continue-on-error: true
       - name: clang (jessie)
         id: test_jessie
@@ -157,7 +157,7 @@ jobs:
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
           params: -e CC=clang
-          command: -j -Orecurse READLINE=libreadline test
+          command: -j$(nproc) -Orecurse READLINE=libreadline test
         continue-on-error: true
 
       - name: create ${{ env.ARCHIVE_TGT }}
