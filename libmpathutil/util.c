@@ -39,7 +39,7 @@ strchop(char *str)
  */
 static const char *__basename(const char *filename)
 {
-	char *p = strrchr(filename, '/');
+	const char *p = strrchr(filename, '/');
 	return p ? p + 1 : filename;
 }
 #define basename(x) __basename(x)
