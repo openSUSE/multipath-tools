@@ -145,7 +145,6 @@ NOLOG
 nompath
 NOSCAN
 Nosync
-NVMe
 nvme
 NFINIDAT
 OBJDEPS
@@ -157,6 +156,7 @@ OPTFLAGS
 paramp
 partx
 pathgroup
+pathlist
 petabytes
 pgpolicy
 plugindir
