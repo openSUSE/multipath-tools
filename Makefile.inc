@@ -103,9 +103,10 @@ OPTFLAGS	= -O2 -g -pipe -Wall -Wextra -Wformat=2 -Werror=implicit-int \
 		  -Wno-sign-compare -Wno-unused-parameter -Wno-clobbered \
 		  -Werror=cast-qual $(ERROR_DISCARDED_QUALIFIERS) \
 		  -Wp,-D_FORTIFY_SOURCE=2 $(STACKPROT) \
-		  --param=ssp-buffer-size=4
+		  --param=ssp-buffer-size=4 
 
-CFLAGS		:= $(OPTFLAGS) -DBIN_DIR=\"$(bindir)\" -DLIB_STRING=\"${LIB}\" -DRUN_DIR=\"${RUN}\" \
+CFLAGS		:= $(OPTFLAGS) -fexceptions -fno-strict-aliasing \
+		   -DBIN_DIR=\"$(bindir)\" -DLIB_STRING=\"${LIB}\" -DRUN_DIR=\"${RUN}\" \
 		   -DRUNTIME_DIR=\"$(runtimedir)\" -MMD -MP $(CFLAGS)
 BIN_CFLAGS	= -fPIE -DPIE
 LIB_CFLAGS	= -fPIC
