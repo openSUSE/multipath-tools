@@ -123,6 +123,7 @@ libudevdir
 liburcu
 linux
 LIO
+lld
 lpthread
 Lun
 lvm
@@ -161,6 +162,7 @@ pathgroup
 pathlist
 petabytes
 pgpolicy
+pgvec
 plugindir
 PNR
 ppc
