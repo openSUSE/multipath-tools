@@ -13,6 +13,7 @@ autodetected
 autoresize
 barbie
 BINDIR
+bitfield
 blkid
 bmarzins
 cciss
@@ -47,6 +48,7 @@ DIO
 directio
 disablequeueing
 dmevent
+dmi
 dmmp
 dmraid
 dmsetup
@@ -55,11 +57,13 @@ EAGAIN
 emc
 Engenio
 EVPD
+Exos
 failback
 failover
 fds
 FFFFFFFF
 fge
+fno
 followover
 forcequeueing
 fpin
@@ -110,6 +114,7 @@ libudevdir
 liburcu
 linux
 LIO
+lld
 lpthread
 Lun
 lvm
@@ -126,11 +131,13 @@ multipathing
 multipaths
 multiqueue
 mwilck
+NFINIDAT
 NOLOG
 nompath
 NOSCAN
 Nosync
 nvme
+Nytro
 OBJDEPS
 oneshot
 ontap
@@ -140,7 +147,10 @@ OPTFLAGS
 paramp
 partx
 pathgroup
+pathlist
+petabytes
 pgpolicy
+pgvec
 plugindir
 PNR
 preferredip
@@ -170,11 +180,13 @@ rootprefix
 rootprefixdir
 rport
 rtpi
+rtprio
+sanitizers
 sas
 sbp
 scsi
 sda
-sdc
+Seagate
 setmarginal
 setprkey
 setprstatus
@@ -224,6 +236,7 @@ usr
 uuid
 valgrind
 varoqui
+versioning
 Vess
 vgr
 VNX
@@ -234,6 +247,7 @@ weightedpath
 wholedisk
 Wilck
 wildcards
+Wno
 workflows
 wrt
 wwid
