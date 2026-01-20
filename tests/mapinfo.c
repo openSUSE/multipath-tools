@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2024 Martin Wilck, SUSE
- * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 /*
@@ -158,9 +158,10 @@ int __wrap_dm_task_get_info(struct dm_task *t, struct dm_info *dmi)
 	return rc;
 }
 
-const void * __wrap_dm_get_next_target(struct dm_task *dmt, void *next,
-				uint64_t *start, uint64_t *length,
-				const char **target_type, const char **params)
+const void *
+__wrap_dm_get_next_target(struct dm_task *dmt, void *next, uint64_t *start,
+			  uint64_t *length, const char **target_type,
+			  const char **params)
 {
 	*start = 0;
 	*length = mock_type(uint64_t);

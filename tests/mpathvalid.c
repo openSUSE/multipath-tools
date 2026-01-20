@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2020 Benjamin Marzinski, Red Hat
- *
- * SPDX-License-Identifier: GPL-2.0-or-later
  */
 #include <stdbool.h>
 #include <stdarg.h>
@@ -9,7 +8,7 @@
 #include <setjmp.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <cmocka.h>
+#include "mt-udev-wrap.h"
 #include "cmocka-compat.h"
 #include "structs.h"
 #include "config.h"

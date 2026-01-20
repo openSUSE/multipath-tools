@@ -1,8 +1,8 @@
 #include <string.h>
 #include <setjmp.h>
 #include <stdarg.h>
-#include <libudev.h>
 #include "cmocka-compat.h"
+#include "mt-udev-wrap.h"
 #include <sys/sysmacros.h>
 #include <linux/hdreg.h>
 #include <scsi/sg.h>
@@ -111,35 +111,35 @@ const char *__wrap_udev_device_get_subsystem(struct udev_device *ud)
 	return val;
 }
 
-const char  *__wrap_udev_device_get_sysname(struct udev_device *ud)
+const char *__wrap_udev_device_get_sysname(struct udev_device *ud)
 {
-	const char  *val  = mock_ptr_type(const char  *);
+	const char *val = mock_ptr_type(const char *);
 
 	condlog(5, "%s: %s", __func__, val);
 	return val;
 }
 
-const char  *__wrap_udev_device_get_devnode(struct udev_device *ud)
+const char *__wrap_udev_device_get_devnode(struct udev_device *ud)
 {
-	const char  *val  = mock_ptr_type(const char  *);
+	const char *val = mock_ptr_type(const char *);
 
 	condlog(5, "%s: %s", __func__, val);
 	return val;
 }
 
-const char  *__wrap_udev_device_get_sysattr_value(struct udev_device *ud,
-					     const char *attr)
+const char *
+__wrap_udev_device_get_sysattr_value(struct udev_device *ud, const char *attr)
 {
-	const char  *val  = mock_ptr_type(const char  *);
+	const char *val = mock_ptr_type(const char *);
 
 	condlog(5, "%s: %s->%s", __func__, attr, val);
 	return val;
 }
 
-const char  *__wrap_udev_device_get_property_value(struct udev_device *ud,
-					    const char *attr)
+const char *
+__wrap_udev_device_get_property_value(struct udev_device *ud, const char *attr)
 {
-	const char  *val  = mock_ptr_type(const char  *);
+	const char *val = mock_ptr_type(const char *);
 
 	condlog(5, "%s: %s->%s", __func__, attr, val);
 	return val;
@@ -147,7 +147,7 @@ const char  *__wrap_udev_device_get_property_value(struct udev_device *ud,
 
 const void *__wrap_udev_device_get_parent(struct udev_device *ud)
 {
-	const void *val  = mock_ptr_type(const void *);
+	const void *val = mock_ptr_type(const void *);
 
 	condlog(5, "%s: %p", __func__, val);
 	return val;
@@ -180,10 +180,9 @@ void *__wrap_udev_device_get_parent_with_subsystem_devtype(
 }
 
 size_t __wrap_sysfs_attr_get_value(struct udev_device *dev,
-				    const char *attr_name,
-				    char *value, size_t sz)
+				   const char *attr_name, char *value, size_t sz)
 {
-	const char *val  = mock_ptr_type(const char *);
+	const char *val = mock_ptr_type(const char *);
 
 	condlog(5, "%s: %s", __func__, val);
 	strlcpy(value, val, sz);
@@ -244,7 +243,7 @@ int __wrap_ioctl(int fd, unsigned long request, void *param)
 		if (hdr->interface_id == 'S' && hdr->cmdp[0] == 0x12
 		    && (hdr->cmdp[1] & 1) == 1 && hdr->cmdp[2] == HP3PAR_VPD) {
 			assert_uint_in_range(hdr->dxfer_len,
-					sizeof(vpd_data) + 3, INT_MAX);
+					     sizeof(vpd_data) + 3, INT_MAX);
 			memset(buf, 0, hdr->dxfer_len);
 			buf[1] = HP3PAR_VPD;
 			put_unaligned_be16(sizeof(vpd_data), &buf[2]);
@@ -297,12 +296,13 @@ static void mock_sysfs_pathinfo(const struct mocked_path *mp)
 
 	/* sysfs_get_tgt_nodename */
 	will_return(__wrap_udev_device_get_sysattr_value, NULL);
+	will_return(__wrap_udev_device_get_subsystem, NULL);
 	will_return(__wrap_udev_device_get_parent, NULL);
 	will_return(__wrap_udev_device_get_parent, NULL);
 	will_return(__wrap_udev_device_get_sysname, "nofibre");
 	will_return(__wrap_udev_device_get_sysname, "noiscsi");
-	will_return(__wrap_udev_device_get_parent, NULL);
 	will_return(__wrap_udev_device_get_sysname, "ata25");
+	will_return(__wrap_udev_device_get_parent, NULL);
 }
 
 /*
@@ -333,7 +333,7 @@ void mock_pathinfo(int mask, const struct mocked_path *mp)
 	    (mask & DI_BLACKLIST && mask & DI_SYSFS))
 		return;
 
-	/* path_offline */
+	/* path_sysfs_state */
 	will_return(__wrap_udev_device_get_subsystem, "scsi");
 	will_return(__wrap_sysfs_attr_get_value, "running");
 

@@ -9,6 +9,12 @@
 # Uncomment to disable dmevents polling support
 # ENABLE_DMEVENTS_POLL = 0
 #
+# Use ASAN=1 on make command line to enable address sanitizer
+ASAN := 
+#
+# Override on make command line if desired
+OPT := -O2
+
 # Readline library to use, libedit, libreadline, or empty
 # Caution: Using libreadline may make the multipathd binary undistributable,
 # see https://github.com/opensvc/multipath-tools/issues/36
@@ -102,7 +108,7 @@ SYSTEMD_LIBDEPS := $(if $(SYSTEMD),$(if $(shell test $(SYSTEMD) -gt 209 && echo 
 MODPROBE_UNIT := $(shell test "0$(SYSTEMD)" -lt 245 2>/dev/null || \
 			echo "modprobe@dm_multipath.service")
 
-OPTFLAGS	:= -O2 -g $(STACKPROT) --param=ssp-buffer-size=4
+OPTFLAGS	:= $(OPT) -g $(STACKPROT) --param=ssp-buffer-size=4
 
 # Set WARN_ONLY=1 to avoid compilation erroring out due to warnings. Useful during development.
 WARN_ONLY       :=
@@ -122,11 +128,11 @@ CPPFLAGS	:= $(FORTIFY_OPT) $(CPPFLAGS) $(D_URCU_VERSION) $(D_CMOCKA_VERSION) \
 		   -DWSTRINGOP_TRUNCATION=$(if $(WSTRINGOP_TRUNCATION),1,0) \
 		   -MMD -MP
 CFLAGS		:= -std=$(C_STD) $(CFLAGS) $(OPTFLAGS) $(WARNFLAGS) -pipe \
-		   -fexceptions
+		   -fexceptions -fno-strict-aliasing $(if $(ASAN),-fsanitize=address)
 BIN_CFLAGS	:= -fPIE -DPIE
 LIB_CFLAGS	:= -fPIC
 SHARED_FLAGS	:= -shared
-LDFLAGS		:= $(LDFLAGS) -Wl,-z,relro -Wl,-z,now -Wl,-z,defs
+LDFLAGS		:= $(LDFLAGS) -Wl,-z,relro -Wl,-z,now -Wl,-z,defs $(if $(ASAN),-lasan)
 BIN_LDFLAGS	:= -pie
 
 # Source code directories. Don't modify.

@@ -7,8 +7,8 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <stdlib.h>
-#include <libudev.h>
 #include "cmocka-compat.h"
+#include "mt-udev-wrap.h"
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>

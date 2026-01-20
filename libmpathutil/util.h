@@ -10,12 +10,14 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <libudev.h>
 
 #ifndef __GLIBC_PREREQ
 #define __GLIBC_PREREQ(x, y) 0
 #endif
 
+#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
+
+struct udev_device;
 size_t strchop(char *);
 
 const char *libmp_basename(const char *filename);
@@ -99,13 +101,17 @@ union bitfield {
 };
 
 /*
+ * BITFIELD: define a static bitfield of length bits_per_slot
+ * (aka 64 on 64-bit architectures).
  * gcc 4.9.2 (Debian Jessie) raises an error if the initializer for
  * .__len comes first. Thus put .__bits first.
+ * Use e.g. BUILD_BUG_ON() to make sure the bitfield size is sufficient
+ * to hold the number of bits required.
  */
-#define BITFIELD(name, length)						\
+#define BITFIELD(name)							\
 	union bitfield __storage_for__ ## name = {			\
 		.__bits = { 0 },					\
-		.__len = (length),					\
+		.__len = (bits_per_slot),				\
 	}; \
 	union bitfield *name = & __storage_for__ ## name
 

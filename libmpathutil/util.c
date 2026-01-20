@@ -12,7 +12,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <errno.h>
-#include <libudev.h>
+#include "mt-udev-wrap.h"
 
 #include "util.h"
 #include "debug.h"
@@ -38,7 +38,7 @@ strchop(char *str)
  */
 const char *libmp_basename(const char *filename)
 {
-	char *p = strrchr(filename, '/');
+	const char *p = strrchr(filename, '/');
 	return p ? p + 1 : filename;
 }
 

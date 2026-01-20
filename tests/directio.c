@@ -10,7 +10,6 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <stdlib.h>
-#include <libaio.h>
 #include "cmocka-compat.h"
 #include "wrap64.h"
 #include "globals.c"

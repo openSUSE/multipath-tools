@@ -1260,7 +1260,8 @@ static void al_a(void **state)
 	static const char ln[] = "MPATHa WWIDa\n";
 	char *alias;
 
-	expect_uint_value(__wrap_write, count, strlen(BINDINGS_FILE_HEADER) + strlen(ln));
+	expect_uint_value(__wrap_write, count,
+			  strlen(BINDINGS_FILE_HEADER) + strlen(ln));
 	will_return(__wrap_write, ln);
 	will_return(__wrap_write, strlen(BINDINGS_FILE_HEADER) + strlen(ln));
 	will_return(__wrap_rename, 0);
@@ -1279,7 +1280,8 @@ static void al_zz(void **state)
 	static const char ln[] = "MPATHzz WWIDzz\n";
 	char *alias;
 
-	expect_uint_value(__wrap_write, count, strlen(BINDINGS_FILE_HEADER) + strlen(ln));
+	expect_uint_value(__wrap_write, count,
+			  strlen(BINDINGS_FILE_HEADER) + strlen(ln));
 	will_return(__wrap_write, ln);
 	will_return(__wrap_write, strlen(BINDINGS_FILE_HEADER) + strlen(ln));
 	will_return(__wrap_rename, 0);
@@ -1318,7 +1320,8 @@ static void al_write_partial(void **state)
 	static const char ln[] = "MPATHa WWIDa\n";
 	char *alias;
 
-	expect_uint_value(__wrap_write, count, strlen(BINDINGS_FILE_HEADER) + strlen(ln));
+	expect_uint_value(__wrap_write, count,
+			  strlen(BINDINGS_FILE_HEADER) + strlen(ln));
 	will_return(__wrap_write, ln);
 	will_return(__wrap_write, strlen(BINDINGS_FILE_HEADER) + strlen(ln) - 1);
 	expect_uint_value(__wrap_write, count, 1);
@@ -1340,7 +1343,8 @@ static void al_write_short(void **state)
 	static const char ln[] = "MPATHa WWIDa\n";
 	char *alias;
 
-	expect_uint_value(__wrap_write, count, strlen(BINDINGS_FILE_HEADER) + strlen(ln));
+	expect_uint_value(__wrap_write, count,
+			  strlen(BINDINGS_FILE_HEADER) + strlen(ln));
 	will_return(__wrap_write, ln);
 	will_return(__wrap_write, strlen(BINDINGS_FILE_HEADER) + strlen(ln) - 1);
 	expect_uint_value(__wrap_write, count, 1);
@@ -1360,7 +1364,8 @@ static void al_write_err(void **state)
 	static const char ln[] = "MPATHa WWIDa\n";
 	char *alias;
 
-	expect_uint_value(__wrap_write, count, strlen(BINDINGS_FILE_HEADER) + strlen(ln));
+	expect_uint_value(__wrap_write, count,
+			  strlen(BINDINGS_FILE_HEADER) + strlen(ln));
 	will_return(__wrap_write, ln);
 	will_return(__wrap_write, -EPERM);
 	expect_condlog(1, "failed to write new bindings file");
@@ -1376,7 +1381,8 @@ static void al_rename_err(void **state)
 	static const char ln[] = "MPATHa WWIDa\n";
 	char *alias;
 
-	expect_uint_value(__wrap_write, count, strlen(BINDINGS_FILE_HEADER) + strlen(ln));
+	expect_uint_value(__wrap_write, count,
+			  strlen(BINDINGS_FILE_HEADER) + strlen(ln));
 	will_return(__wrap_write, ln);
 	will_return(__wrap_write, strlen(BINDINGS_FILE_HEADER) + strlen(ln));
 	will_return(__wrap_rename, -EROFS);

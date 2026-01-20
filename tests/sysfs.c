@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021 SUSE LLC
- * SPDX-License-Identifier: GPL-2.0-only
  */
 
 #define _GNU_SOURCE
@@ -9,8 +9,8 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <stdlib.h>
-#include <libudev.h>
 #include "cmocka-compat.h"
+#include "mt-udev-wrap.h"
 #include <fcntl.h>
 #include <errno.h>
 #include "debug.h"
@@ -24,7 +24,7 @@
 
 const char *__wrap_udev_device_get_syspath(struct udev_device *ud)
 {
-	const char  *val  = mock_ptr_type(const char  *);
+	const char *val = mock_ptr_type(const char *);
 
 	return val;
 }

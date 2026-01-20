@@ -218,7 +218,8 @@ static void test_bitmask_1(void **state)
 				       b, j, k, arr[k]);
 #endif
 				if (k == j)
-					assert_uint_equal(maybe_swap(arr[j]), 1ULL << i);
+					assert_uint_equal(maybe_swap(arr[j]),
+							  1ULL << i);
 				else
 					assert_uint_equal(arr[k], 0ULL);
 			}
@@ -268,9 +269,8 @@ static void test_bitmask_2(void **state)
 				else if (k > j)
 					assert_uint_equal(arr[k], 0ULL);
 				else
-					assert_uint_equal(
-						maybe_swap(arr[k]),
-						(1ULL << (i + 1)) - 1);
+					assert_uint_equal(maybe_swap(arr[k]),
+							  (1ULL << (i + 1)) - 1);
 			}
 		}
 	}
@@ -293,9 +293,8 @@ static void test_bitmask_2(void **state)
 				else if (k > j)
 					assert_uint_equal(arr[k], ~0ULL);
 				else
-					assert_uint_equal(
-						maybe_swap(arr[k]),
-						~((1ULL << (i + 1)) - 1));
+					assert_uint_equal(maybe_swap(arr[k]),
+							  ~((1ULL << (i + 1)) - 1));
 			}
 		}
 	}

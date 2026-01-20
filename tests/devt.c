@@ -1,15 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2020 Martin Wilck, SUSE
- *
- * SPDX-License-Identifier: GPL-2.0-or-later
  */
 #include <stdbool.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <setjmp.h>
 #include <stdlib.h>
-#include <libudev.h>
 #include "cmocka-compat.h"
+#include "mt-udev-wrap.h"
 #include <sys/sysmacros.h>
 #include <fcntl.h>
 #include <sys/stat.h>

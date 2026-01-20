@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021 SUSE LLC
- * SPDX-License-Identifier: GPL-2.0-only
  */
 
 #define _GNU_SOURCE
@@ -25,7 +25,7 @@ void *__wrap_realloc(void *ptr, size_t size)
 		return __real_realloc(ptr, size);
 
 #pragma GCC diagnostic push
-#pragma GCC   diagnostic ignored "-Wcast-qual"
+#pragma GCC diagnostic ignored "-Wcast-qual"
 	p = mock_ptr_type(void *);
 #pragma GCC diagnostic pop
 
@@ -162,7 +162,8 @@ static void test_strbuf_big(void **state)
 		if (i % 1000 == 0)
 			condlog(4, "%d", i);
 		assert_int_equal(append_strbuf_str(&buf, big), sizeof(big) - 1);
-		assert_uint_equal(get_strbuf_len(&buf), (sizeof(big) - 1) * (i + 1));
+		assert_uint_equal(get_strbuf_len(&buf),
+				  (sizeof(big) - 1) * (i + 1));
 		assert_memory_equal(get_strbuf_str(&buf), big, sizeof(big) - 1);
 		assert_string_equal(get_strbuf_str(&buf) + get_strbuf_len(&buf)
 				    - (sizeof(big) - 1), big);
