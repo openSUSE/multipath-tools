@@ -94,12 +94,11 @@ static int use_watchdog;
 
 #define LOG_MSG(lvl, verb, pp)					\
 do {								\
-	if (pp->mpp && checker_selected(&pp->checker) &&	\
-	    lvl <= verb) {					\
+	if (pp->mpp && lvl <= verb) {				\
 		if (pp->offline)				\
 			condlog(lvl, "%s: %s - path offline",	\
 				pp->mpp->alias, pp->dev);	\
-		else  {						\
+		else if (checker_selected(&pp->checker)) {	\
 			const char *__m =			\
 				checker_message(&pp->checker);	\
 								\
