@@ -880,6 +880,8 @@ scsi_tmo_error_msg(struct path *pp)
 	STRBUF_ON_STACK(proto_buf);
 	unsigned int proto_id = bus_protocol_id(pp);
 
+	if (is_bit_set_in_bitfield(proto_id, bf))
+		return;
 	snprint_path_protocol(&proto_buf, pp);
 	condlog(2, "%s: setting scsi timeouts is unsupported for protocol %s",
 		pp->dev, get_strbuf_str(&proto_buf));
@@ -1669,6 +1671,7 @@ ccw_sysfs_pathinfo (struct path *pp, const struct vector_s *hwtable)
 	if (!parent)
 		return PATHINFO_FAILED;
 
+	// Identified as IBM, but any other PAV array vendor is also supported
 	sprintf(pp->vendor_id, "IBM");
 
 	condlog(3, "%s: vendor = %s", pp->dev, pp->vendor_id);
@@ -2245,7 +2248,7 @@ static ssize_t uid_fallback(struct path *pp, int path_state,
 	return len;
 }
 
-bool has_uid_fallback(struct path *pp)
+static bool has_uid_fallback(const struct path *pp)
 {
 	/*
 	 * Falling back to direct WWID determination is dangerous
@@ -2264,6 +2267,16 @@ bool has_uid_fallback(struct path *pp)
 		(pp->bus == SYSFS_BUS_CCW &&
 		 (!strcmp(pp->uid_attribute, DEFAULT_DASD_UID_ATTRIBUTE) ||
 		  !strcmp(pp->uid_attribute, ""))));
+}
+
+bool can_recheck_wwid(const struct path *pp)
+{
+	/*
+	 * check_path_wwid_change() only works for scsi devices, and it
+	 * is only guaranteed to give the same WWID if the path uses
+	 * the default uid_attribute
+	 */
+	return (pp->bus == SYSFS_BUS_SCSI && has_uid_fallback(pp));
 }
 
 int
@@ -2546,6 +2559,8 @@ blank:
 	 * Recoverable error, for example faulty or offline path
 	 */
 	pp->chkrstate = pp->state = PATH_DOWN;
+	if (mask & DI_IOCTL && pp->ioctl_info == IOCTL_INFO_NOT_REQUESTED)
+		pp->ioctl_info = IOCTL_INFO_SKIPPED;
 	if (pp->initialized == INIT_NEW || pp->initialized == INIT_FAILED)
 		memset(pp->wwid, 0, WWID_SIZE);
 

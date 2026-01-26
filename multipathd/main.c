@@ -94,12 +94,11 @@ void * mpath_pr_event_handler_fn (void * );
 
 #define LOG_MSG(lvl, pp)					\
 do {								\
-	if (pp->mpp && checker_selected(&pp->checker) &&	\
-	    lvl <= libmp_verbosity) {					\
-		if (pp->sysfs_state == PATH_DOWN)		\
+	if (pp->mpp && lvl <= libmp_verbosity) {		\
+		if (pp->sysfs_state != PATH_UP)			\
 			condlog(lvl, "%s: %s - path offline",	\
 				pp->mpp->alias, pp->dev);	\
-		else  {						\
+		else if (checker_selected(&pp->checker)) {	\
 			const char *__m =			\
 				checker_message(&pp->checker);	\
 								\
@@ -644,11 +643,45 @@ pr_register_active_paths(struct multipath *mpp)
 	}
 }
 
+static void
+save_offline_paths(const struct multipath *mpp, vector offline_paths)
+{
+	unsigned int i, j;
+	struct path *pp;
+	struct pathgroup *pgp;
+
+	vector_foreach_slot (mpp->pg, pgp, i)
+		vector_foreach_slot (pgp->paths, pp, j)
+			if (pp->initialized == INIT_OK &&
+			    pp->sysfs_state == PATH_DOWN)
+				/* ignore failures storing the paths. */
+				store_path(offline_paths, pp);
+}
+
+static void
+handle_orphaned_offline_paths(vector offline_paths)
+{
+	unsigned int i;
+	struct path *pp;
+
+	vector_foreach_slot (offline_paths, pp, i)
+		if (pp->mpp == NULL)
+			pp->add_when_online = true;
+}
+
+static void
+cleanup_reset_vec(struct vector_s **v)
+{
+	vector_reset(*v);
+}
+
 static int
 update_map (struct multipath *mpp, struct vectors *vecs, int new_map)
 {
 	int retries = 3;
 	char *params __attribute__((cleanup(cleanup_charp))) = NULL;
+	struct vector_s offline_paths_vec = { .allocated = 0 };
+	vector offline_paths __attribute__((cleanup(cleanup_reset_vec))) = &offline_paths_vec;
 
 retry:
 	condlog(4, "%s: updating new map", mpp->alias);
@@ -679,11 +712,14 @@ retry:
 	}
 
 fail:
-	if (new_map && (retries < 0 || wait_for_events(mpp, vecs))) {
+	if (new_map && wait_for_events(mpp, vecs)) {
 		condlog(0, "%s: failed to create new map", mpp->alias);
 		remove_map(mpp, vecs->pathvec, vecs->mpvec);
 		return 1;
 	}
+
+	if (new_map && retries < 0)
+		save_offline_paths(mpp, offline_paths);
 
 	if (setup_multipath(vecs, mpp))
 		return 1;
@@ -694,6 +730,9 @@ fail:
 		update_map_pr(mpp);
 	if (mpp->prflag == PRFLAG_SET)
 		pr_register_active_paths(mpp);
+
+	if (VECTOR_SIZE(offline_paths) != 0)
+		handle_orphaned_offline_paths(offline_paths);
 
 	if (retries < 0)
 		condlog(0, "%s: failed reload in new map update", mpp->alias);
@@ -764,6 +803,18 @@ coalesce_maps(struct vectors *vecs, vector nmpv)
 	vector_foreach_slot (ompv, ompp, i) {
 		condlog(3, "%s: coalesce map", ompp->alias);
 		if (!find_mp_by_wwid(nmpv, ompp->wwid)) {
+			struct pathgroup *pgp;
+			struct path *pp;
+			int j, k;
+
+			/*
+			 * set pp->mpp for all the old map's paths,
+			 * so that they can be properly removed
+			 */
+			vector_foreach_slot (ompp->pg, pgp, j)
+				vector_foreach_slot (pgp->paths, pp, k)
+					if (!pp->mpp)
+						pp->mpp = ompp;
 			/*
 			 * remove all current maps not allowed by the
 			 * current configuration
@@ -2468,6 +2519,26 @@ sync_mpp(struct vectors * vecs, struct multipath *mpp, unsigned int ticks)
 	return do_sync_mpp(vecs, mpp);
 }
 
+/*
+ * pp->wwid should never be empty when this function is called, but if it
+ * is, this function can set it.
+ */
+static bool new_path_wwid_changed(struct path *pp, int state)
+{
+	char wwid[WWID_SIZE];
+
+	strlcpy(wwid, pp->wwid, WWID_SIZE);
+	if (get_uid(pp, state, pp->udev, 1) != 0) {
+		strlcpy(pp->wwid, wwid, WWID_SIZE);
+		return false;
+	}
+	if (strlen(wwid) && strncmp(wwid, pp->wwid, WWID_SIZE) != 0) {
+		strlcpy(pp->wwid, wwid, WWID_SIZE);
+		return true;
+	}
+	return false;
+}
+
 static int
 update_path_state (struct vectors * vecs, struct path * pp)
 {
@@ -2496,14 +2567,34 @@ update_path_state (struct vectors * vecs, struct path * pp)
 		pp->tick = 1;
 		return CHECK_PATH_SKIPPED;
 	}
-	if (pp->recheck_wwid == RECHECK_WWID_ON &&
-	    (newstate == PATH_UP || newstate == PATH_GHOST) &&
+
+	if ((newstate == PATH_UP || newstate == PATH_GHOST) &&
 	    ((pp->state != PATH_UP && pp->state != PATH_GHOST) ||
-	     pp->dmstate == PSTATE_FAILED) &&
-	    check_path_wwid_change(pp)) {
-		condlog(0, "%s: path wwid change detected. Removing", pp->dev);
-		return handle_path_wwid_change(pp, vecs)? CHECK_PATH_REMOVED :
-							  CHECK_PATH_SKIPPED;
+	     pp->dmstate == PSTATE_FAILED)) {
+		bool wwid_changed = false;
+
+		if (pp->initialized == INIT_NEW) {
+			/*
+			 * Path was added to map while offline, mark it as
+			 * initialized.
+			 * DI_SYSFS was checked when the path was added
+			 * DI_IOCTL was checked when the checker was selected
+			 * DI_CHECKER just got checked
+			 * DI_WWID is about to be checked
+			 * DI_PRIO will get checked at the end of this checker
+			 * loop
+			 */
+			pp->initialized = INIT_OK;
+			wwid_changed = new_path_wwid_changed(pp, newstate);
+		} else if (pp->recheck_wwid == RECHECK_WWID_ON)
+			wwid_changed = check_path_wwid_change(pp);
+		if (wwid_changed) {
+			condlog(0, "%s: path wwid change detected. Removing",
+				pp->dev);
+			return handle_path_wwid_change(pp, vecs)
+				       ? CHECK_PATH_REMOVED
+				       : CHECK_PATH_SKIPPED;
+		}
 	}
 	if ((newstate != PATH_UP && newstate != PATH_GHOST &&
 	     newstate != PATH_PENDING) && (pp->state == PATH_DELAYED)) {
@@ -2798,7 +2889,8 @@ check_uninitialized_path(struct path * pp, unsigned int ticks)
 	struct config *conf;
 
 	if (pp->initialized != INIT_NEW && pp->initialized != INIT_FAILED &&
-	    pp->initialized != INIT_MISSING_UDEV)
+	    pp->initialized != INIT_MISSING_UDEV &&
+	    !(pp->initialized == INIT_OK && pp->add_when_online))
 		return CHECK_PATH_SKIPPED;
 
 	if (pp->tick)
@@ -2854,7 +2946,7 @@ update_uninitialized_path(struct vectors * vecs, struct path * pp)
 	struct config *conf;
 
 	if (pp->initialized != INIT_NEW && pp->initialized != INIT_FAILED &&
-	    pp->initialized != INIT_MISSING_UDEV)
+	    !(pp->initialized == INIT_OK && pp->add_when_online))
 		return CHECK_PATH_SKIPPED;
 
 	newstate = get_new_state(pp);
@@ -2880,6 +2972,18 @@ update_uninitialized_path(struct vectors * vecs, struct path * pp)
 			free_path(pp);
 			return CHECK_PATH_REMOVED;
 		}
+	} else if (pp->initialized == INIT_OK && pp->add_when_online &&
+		   (newstate == PATH_UP || newstate == PATH_GHOST)) {
+		pp->add_when_online = false;
+		if (can_recheck_wwid(pp) && check_path_wwid_change(pp)) {
+			condlog(0, "%s: path wwid change detected. Removing",
+				pp->dev);
+			return handle_path_wwid_change(pp, vecs)?
+					CHECK_PATH_REMOVED :
+					CHECK_PATH_SKIPPED;
+		}
+		ev_add_path(pp, vecs, 1);
+		pp->tick = 1;
 	}
 	return CHECK_PATH_CHECKED;
 }
@@ -3680,18 +3784,21 @@ static struct call_rcu_data *mp_rcu_data;
 
 static void cleanup_rcu(void)
 {
-	pthread_t rcu_thread;
-
 	/* Wait for any pending RCU calls */
 	rcu_barrier();
 	if (mp_rcu_data != NULL) {
+#if (URCU_VERSION < 0x000E00)
+		pthread_t rcu_thread;
 		rcu_thread = get_call_rcu_thread(mp_rcu_data);
+#endif
 		/* detach this thread from the RCU thread */
 		set_thread_call_rcu_data(NULL);
 		synchronize_rcu();
 		/* tell RCU thread to exit */
 		call_rcu_data_free(mp_rcu_data);
+#if (URCU_VERSION < 0x000E00)
 		pthread_join(rcu_thread, NULL);
+#endif
 	}
 	rcu_unregister_thread();
 }
@@ -3731,7 +3838,7 @@ child (__attribute__((unused)) void *param)
 	int rc;
 	struct config *conf;
 	char *envp;
-	enum daemon_status state;
+	enum daemon_status state = DAEMON_INIT;
 	int exit_code = 1;
 	int fpin_marginal_paths = 0;
 

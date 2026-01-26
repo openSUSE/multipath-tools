@@ -84,7 +84,6 @@ global:
 	dm_geteventnr;
 	dm_get_major_minor;
 	dm_get_maps;
-	dm_get_multipath;
 	dm_is_mpath;
 	dm_mapname;
 	dm_prereq;
@@ -245,3 +244,8 @@ global:
 local:
 	*;
 };
+
+LIBMULTIPATH_29.1.0 {
+global:
+	can_recheck_wwid;
+} LIBMULTIPATH_29.0.0;
