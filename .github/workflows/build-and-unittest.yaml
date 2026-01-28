@@ -108,3 +108,5 @@ jobs:
         run: rm -f tests/dmevents.out tests/directio.out
       - name: root-test
         run: sudo make DIO_TEST_DEV=/dev/ram0 test
+      - name: kpartx-test
+        run: sudo make -C kpartx test
