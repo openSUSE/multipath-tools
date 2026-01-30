@@ -719,7 +719,7 @@ static int libmp_mapinfo__(int flags, mapid_t id, mapinfo_t info, const char *ma
 			return DMP_NOT_FOUND;
 		}
 		if (!params) {
-			condlog(2, "%s: map %s has no targets", fname__, map_id);
+			condlog(3, "%s: map %s has no targets", fname__, map_id);
 			return DMP_NOT_FOUND;
 		}
 		if (flags & MAPINFO_TGT_TYPE__) {
