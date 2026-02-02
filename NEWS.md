@@ -9,6 +9,14 @@ release. These bug fixes will be tracked in stable branches.
 
 See [README.md](README.md) for additional information.
 
+## multipath-tools 0.13.2, tbd
+
+### CI
+
+* Updated the `test_kpartx` test script, and added it to the
+  `basic-build-and-ci` workflow. Backport from 0.14.2.
+
+
 ## multipath-tools 0.13.1, 2026/01
 
 ### Bug fixes
