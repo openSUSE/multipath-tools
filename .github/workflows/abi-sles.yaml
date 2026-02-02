@@ -4,6 +4,7 @@ on:
     branches:
       - 'sles-*'
       - 'slfo-*'
+      - '!slfo-main'
     paths:
       - '.github/workflows/abi-sles.yaml'
       - '**.h'
