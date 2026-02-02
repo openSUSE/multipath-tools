@@ -1,8 +1,17 @@
 # multipath-tools Release Notes
 
+## multipath-tools 0.10.7, tbd
+
+### CI
+
+* Updated the `test_kpartx` test script, and added it to the
+  `basic-build-and-ci` workflow. Backport from 0.14.2.
+
 ## multipath-tools 0.10.6, 2026/01
 
-**Note:** This release includes a minor change of the libmultipath ABI.
+**Note:** This release includes a minor change of the libmultipath
+ABI. Subsequent releases on the stable-0.10.y branch will track
+ABI changes relative to 0.10.6.
 
 ### Bug fixes
 
