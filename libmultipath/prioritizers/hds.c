@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * (C) Copyright HDS GmbH 2006. All Rights Reserved.
  *
@@ -60,9 +61,6 @@
  *           not work under RHEL4 U3 i386
  * Changes 2007-06-27:
  *	- switched from major:minor argument to device node argument
- *
- * This file is released under the GPL.
- *
  */
 
 #include <stdio.h>
