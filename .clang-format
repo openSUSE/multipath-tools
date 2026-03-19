@@ -9,6 +9,7 @@ BreakBeforeBraces: Linux
 BreakStringLiterals: false
 AllowShortFunctionsOnASingleLine: Empty
 AlignAfterOpenBracket: Align
+AlignArrayOfStructures: Left
 PointerAlignment: Right
 ColumnLimit: 79
 PenaltyBreakAssignment: 50
