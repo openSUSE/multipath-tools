@@ -43,7 +43,7 @@ LIBMPATHCOMMON_1.0.0 {
 	put_multipath_config;
 };
 
-LIBMPATHUTIL_5.0 {
+LIBMPATHUTIL_6.0 {
 global:
 	alloc_bitfield;
 	alloc_strvec;
@@ -62,6 +62,7 @@ global:
 	cleanup_vector;
 	cleanup_vector_free;
 	convert_dev;
+	check_runner;
 	dlog;
 	filepresent;
 	fill_strbuf;
@@ -72,6 +73,8 @@ global:
 	free_strvec;
 	get_linux_version_code;
 	get_monotonic_time;
+	get_persistent_runner;
+	get_runner;
 	get_strbuf_buf__;
 	get_next_string;
 	get_strbuf_len;
@@ -161,7 +164,9 @@ global:
 	process_file;
 	pthread_cond_init_mono;
 	recv_packet;
+	release_runner;
 	reset_strbuf;
+	runner_state_name;
 	safe_write;
 	send_packet;
 	set_max_fds;
