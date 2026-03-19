@@ -60,7 +60,7 @@ jobs:
           guest-dir: /build
           host-dir: ${{ github.workspace }}
           command: test
-          params: "--platform linux/${{ matrix.arch }}"
+          params: "--pids-limit 4096 --platform linux/${{ matrix.arch }}"
           pull-params: "--platform linux/${{ matrix.arch }}"
         continue-on-error: true
       - name: create binary archive

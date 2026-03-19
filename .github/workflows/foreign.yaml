@@ -89,6 +89,7 @@ jobs:
           host-dir: ${{ github.workspace }}
           command: -C tests
           params: >
+            --pids-limit 4096
             --workdir /__w/multipath-tools/multipath-tools
             --platform linux/${{ env.CONTAINER_ARCH }}
           pull-params: "--platform linux/${{ env.CONTAINER_ARCH }}"
@@ -136,6 +137,7 @@ jobs:
           command: -C tests dmevents.out
           params: >
             --workdir /__w/multipath-tools/multipath-tools
+            --pids-limit 4096
             --platform linux/${{ env.CONTAINER_ARCH }}
             --privileged
             -v /dev/ram0:/dev/ram0 -e DIO_TEST_DEV=/dev/ram0
