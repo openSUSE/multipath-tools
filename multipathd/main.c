@@ -2497,8 +2497,10 @@ get_new_state(struct path *pp)
 	 * Wait for uevent for removed paths;
 	 * some LLDDs like zfcp keep paths unavailable
 	 * without sending uevents.
+	 * Also, map PATH_TIMEOUT to PATH_DOWN here, like we do in
+	 * pathinfo().
 	 */
-	if (newstate == PATH_REMOVED)
+	if (newstate == PATH_REMOVED || newstate == PATH_TIMEOUT)
 		newstate = PATH_DOWN;
 
 	if (newstate == PATH_WILD || newstate == PATH_UNCHECKED) {
