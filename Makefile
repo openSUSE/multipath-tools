@@ -127,9 +127,9 @@ test:	all
 valgrind-test:	all
 	@$(MAKE) -C tests valgrind
 
-TEST-ARTIFACTS := config.mk Makefile.inc \
+TEST-ARTIFACTS := config.mk Makefile Makefile.inc \
 	$(LIB_BUILDDIRS:%=%/*.so*) $(PLUGIN_BUILDDIRS:%=%/*.so) \
-	tests/Makefile tests/*.so* tests/lib/* tests/*-test 
+	tests/Makefile tests/*.so* tests/lib/* tests/*-test tests/runner-test.sh
 
 test-progs.cpio: test-progs
 	$(Q)printf "%s\\n" $(TEST-ARTIFACTS) | cpio -o -H crc >$@
