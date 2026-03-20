@@ -113,6 +113,7 @@ clean:
 	@touch config.mk
 	$(Q)$(MAKE) $(BUILDDIRS:=.clean) tests.clean || true
 	$(Q)$(RM) -r abi abi.tar.gz abi-test config.mk
+	$(Q)$(RM) test-progs.* test-outputs.*
 
 install: $(BUILDDIRS:=.install)
 uninstall: $(BUILDDIRS:=.uninstall)
@@ -131,10 +132,16 @@ TEST-ARTIFACTS := config.mk Makefile.inc \
 	tests/Makefile tests/*.so* tests/lib/* tests/*-test 
 
 test-progs.cpio: test-progs
-	@printf "%s\\n" $(TEST-ARTIFACTS) | cpio -o -H crc >$@
+	$(Q)printf "%s\\n" $(TEST-ARTIFACTS) | cpio -o -H crc >$@
 
 test-progs.tar: test-progs
-	@tar cf $@ $(TEST-ARTIFACTS)
+	$(Q)tar cf $@ $(TEST-ARTIFACTS)
+
+test-outputs.cpio: $(wildcard tests/*.out) $(wildcard tests/*.vgr)
+	$(Q)printf "%s\\n" $^ | cpio -o -H crc >$@
+
+test-outputs.tar: $(wildcard tests/*.out) $(wildcard tests/*.vgr)
+	$(Q)tar cf "$@" $^ || touch $@
 
 .PHONY:	TAGS
 TAGS:
