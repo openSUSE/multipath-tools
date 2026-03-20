@@ -48,14 +48,6 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
 
-      - name: set archive name
-        # Leap containers have cpio but not tar
-        run: echo ARCHIVE_TGT=test-progs.cpio >> $GITHUB_ENV
-        if: startswith(matrix.os, 'opensuse-leap-15')
-      - name: set archive name
-        run: echo ARCHIVE_TGT=test-progs.tar >> $GITHUB_ENV
-        if: ${{ !startswith(matrix.os, 'opensuse-leap-15') }}
-
       - name: build and test
         id: test
         if: matrix.os != 'debian-jessie'
@@ -75,24 +67,18 @@ jobs:
           command: -j$(nproc) -Orecurse READLINE=libreadline test
         continue-on-error: true
 
-      - name: create ${{ env.ARCHIVE_TGT }}
+      - name: create test-progs.tar
         if: matrix.os != 'debian-jessie'
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: ${{ env.ARCHIVE_TGT }}
-      - name: create ${{ env.ARCHIVE_TGT }} (jessie)
-        if: matrix.os == 'debian-jessie'
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: READLINE=libreadline ${{ env.ARCHIVE_TGT }}
+          command: test-progs.tar
 
       - name: upload binary archive
         uses: actions/upload-artifact@v4
         with:
           name: native-${{ matrix.os }}-${{ matrix.variant.arch }}
-          path: ${{ env.ARCHIVE_TGT }}
+          path: test-progs.tar
           overwrite: true
 
       - name: fail
@@ -129,14 +115,6 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
 
-      - name: set archive name
-        # Leap containers have cpio but not tar
-        run: echo ARCHIVE_TGT=test-progs.cpio >> $GITHUB_ENV
-        if: startswith(matrix.os, 'opensuse-leap-15')
-      - name: set archive name
-        run: echo ARCHIVE_TGT=test-progs.tar >> $GITHUB_ENV
-        if: ${{ !startswith(matrix.os, 'opensuse-leap-15') }}
-
       - name: clang
         id: test
         if: matrix.os != 'debian-jessie'
@@ -156,21 +134,21 @@ jobs:
           command: -j$(nproc) -Orecurse READLINE=libreadline test
         continue-on-error: true
 
-      - name: create ${{ env.ARCHIVE_TGT }}
+      - name: create test-progs.tar
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: ${{ env.ARCHIVE_TGT }}
+          command: test-progs.tar
         if: >-
           ${{ ( matrix.os == 'debian-jessie' &&
                 steps.test_jessie.outcome != 'success' ) ||
               ( matrix.os != 'debian-jessie' &&
                 steps.test.outcome != 'success' ) }}
-      - name: create ${{ env.ARCHIVE_TGT }} (jessie)
+      - name: create test-progs.tar (jessie)
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: READLINE=libreadline ${{ env.ARCHIVE_TGT }}
+          command: READLINE=libreadline test-progs.tar
         if: >-
           ${{ ( matrix.os == 'debian-jessie' &&
                 steps.test_jessie.outcome != 'success' ) ||
@@ -181,7 +159,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: clang-${{ matrix.os }}-${{ matrix.variant.arch }}
-          path: ${{ env.ARCHIVE_TGT }}
+          path: test-progs.tar
           overwrite: true
         if: >-
           ${{ ( matrix.os == 'debian-jessie' &&
@@ -230,12 +208,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: native-${{ matrix.os }}-${{ matrix.variant.arch }}
-      - name: unpack binary archive
-        run: cpio -idv < test-progs.cpio
-        if: startswith(matrix.os, 'opensuse-leap-15')
+
       - name: unpack binary archive
         run: tar xfmv test-progs.tar
-        if: ${{ !startswith(matrix.os, 'opensuse-leap-15') }}
 
       - name: run root tests
         uses: mosteo-actions/docker-run@v1
