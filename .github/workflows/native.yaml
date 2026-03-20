@@ -75,10 +75,7 @@ jobs:
           overwrite: true
 
       - name: create test-outputs.tar
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: test-outputs.tar
+        run: make test-outputs.tar
         if: steps.test.outcome != 'success'
 
       - name: upload test-outputs.tar
@@ -135,10 +132,7 @@ jobs:
         continue-on-error: true
 
       - name: create test-outputs.tar
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: test-outputs.tar
+        run: make test-outputs.tar
         if: steps.test.outcome != 'success'
 
       - name: upload test-outputs.tar
@@ -204,10 +198,7 @@ jobs:
         continue-on-error: true
 
       - name: create test-outputs.tar
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: test-outputs.tar
+        run: make test-outputs.tar
         if: steps.test.outcome != 'success'
 
       - name: upload test-outputs.tar

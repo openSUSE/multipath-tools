@@ -66,13 +66,13 @@ jobs:
           params: "--pids-limit 4096 --platform linux/${{ matrix.arch }}"
           pull-params: "--platform linux/${{ matrix.arch }}"
         continue-on-error: true
-      - name: create binary archive
+      - name: create archives
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
           guest-dir: /build
           host-dir: ${{ github.workspace }}
-          command: test-progs.tar
+          command: test-progs.tar test-outputs.tar
           params: "--platform linux/${{ matrix.arch }}"
           pull-params: "--platform linux/${{ matrix.arch }}"
         if: steps.test.outcome != 'success'
@@ -81,16 +81,6 @@ jobs:
         with:
           name: binaries-${{ matrix.os }}-${{ matrix.arch }}
           path: test-progs.tar
-        if: steps.test.outcome != 'success'
-      - name: create test outputs
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          guest-dir: /build
-          host-dir: ${{ github.workspace }}
-          command: test-outputs.tar
-          params: "--platform linux/${{ matrix.arch }}"
-          pull-params: "--platform linux/${{ matrix.arch }}"
         if: steps.test.outcome != 'success'
       - name: upload test outputs
         uses: actions/upload-artifact@v4
