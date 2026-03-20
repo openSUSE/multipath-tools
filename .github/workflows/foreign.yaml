@@ -93,6 +93,31 @@ jobs:
             --workdir /__w/multipath-tools/multipath-tools
             --platform linux/${{ env.CONTAINER_ARCH }}
           pull-params: "--platform linux/${{ env.CONTAINER_ARCH }}"
+        id: test
+        continue-on-error: true
+      - name: save test outputs
+        uses: mosteo-actions/docker-run@v1
+        with:
+          image: ghcr.io/mwilck/multipath-run-debian-${{ matrix.os }}
+          guest-dir: /__w/multipath-tools/multipath-tools
+          host-dir: ${{ github.workspace }}
+          command: test-outputs.tar
+          params: >
+            --pids-limit 4096
+            --workdir /__w/multipath-tools/multipath-tools
+            --platform linux/${{ env.CONTAINER_ARCH }}
+          pull-params: "--platform linux/${{ env.CONTAINER_ARCH }}"
+        if: steps.test.outcome != 'success'
+      - name: upload test outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-${{ matrix.os }}-${{ matrix.arch }}
+          path: test-outputs.tar
+          overwrite: true
+        if: steps.test.outcome != 'success'
+      - name: fail if test failed
+        run: /bin/false
+        if: steps.test.outcome != 'success'
 
   root-test:
     runs-on: ubuntu-24.04
@@ -144,8 +169,28 @@ jobs:
           pull-params: "--platform linux/${{ env.CONTAINER_ARCH }}"
         id: root-test
         continue-on-error: true
-      - name: show root test output
-        run: for o in tests/*.out; do echo "===== $o ====="; cat "$o"; done
-      - name: fail
+      - name: save test outputs
+        uses: mosteo-actions/docker-run@v1
+        with:
+          image: ghcr.io/mwilck/multipath-run-debian-${{ matrix.os }}
+          guest-dir: /__w/multipath-tools/multipath-tools
+          host-dir: ${{ github.workspace }}
+          command: test-outputs.tar
+          params: >
+            --workdir /__w/multipath-tools/multipath-tools
+            --pids-limit 4096
+            --platform linux/${{ env.CONTAINER_ARCH }}
+            --privileged
+            -v /dev/ram0:/dev/ram0 -e DIO_TEST_DEV=/dev/ram0
+          pull-params: "--platform linux/${{ env.CONTAINER_ARCH }}"
+        if: steps.test.outcome != 'success'
+      - name: upload test outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: root-test-${{ matrix.os }}-${{ matrix.arch }}
+          path: test-outputs.tar
+          overwrite: true
+        if: steps.test.outcome != 'success'
+      - name: fail if root test failed
         run: /bin/false
         if: steps.root-test.outcome != 'success'

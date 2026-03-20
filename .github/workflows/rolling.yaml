@@ -73,6 +73,15 @@ jobs:
           name: binaries-${{ matrix.os }}-${{ matrix.variant.arch }}-${{ matrix.compiler }}
           path: test-progs.tar
         if: steps.test.outcome != 'success'
+      - name: create test-outputs.tar
+        run: make test-outputs.tar
+        if: steps.test.outcome != 'success'
+      - name: upload test-outputs.tar
+        uses: actions/upload-artifact@v4
+        with:
+          name: outputs-${{ matrix.os }}-${{ matrix.variant.arch }}-${{ matrix.compiler }}
+          path: test-outputs.tar
+        if: steps.test.outcome != 'success'
       - name: fail
         run: /bin/false
         if: steps.test.outcome != 'success'

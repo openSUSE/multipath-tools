@@ -78,7 +78,18 @@ jobs:
         with:
           name: binaries-${{ matrix.os }}-${{ matrix.arch }}
           path: test-progs.tar
+          overwrite: true
         if: steps.test.outcome != 'success'
-      - name: fail
+      - name: save test outputs
+        run: make test-outputs.tar
+        if: steps.test.outcome != 'success'
+      - name: upload test outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-${{ matrix.os }}-${{ matrix.arch }}
+          path: test-outputs.tar
+          overwrite: true
+        if: steps.test.outcome != 'success'
+      - name: fail if test failed
         run: /bin/false
         if: steps.test.outcome != 'success'
