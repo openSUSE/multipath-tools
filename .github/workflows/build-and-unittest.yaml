@@ -43,7 +43,7 @@ jobs:
       - name: set optflags
         # valgrind doesn't support the dwarf-5 format of clang 14
         run: echo OPT='-O2 -gdwarf-4 -fstack-protector-strong' >> $GITHUB_ENV
-        if: ${{ matrix.cc == 'clang' }}
+        if: matrix.cc == 'clang'
       - name: build
         run: >
           make -Orecurse -j$(nproc)

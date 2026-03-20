@@ -67,10 +67,10 @@ jobs:
     steps:
       - name: set container arch
         run: echo CONTAINER_ARCH="${{ matrix.arch }}" >> $GITHUB_ENV
-        if: ${{ matrix.arch != 'armhf' }}
+        if: matrix.arch != 'armhf'
       - name: set container arch
         run: echo CONTAINER_ARCH="arm/v7" >> $GITHUB_ENV
-        if: ${{ matrix.arch == 'armhf' }}
+        if: matrix.arch == 'armhf'
       - name: download binary archive
         uses: actions/download-artifact@v4
         with:
@@ -114,10 +114,10 @@ jobs:
         run: sudo modprobe brd rd_nr=1 rd_size=65536
       - name: set container arch
         run: echo CONTAINER_ARCH="${{ matrix.arch }}" >> $GITHUB_ENV
-        if: ${{ matrix.arch != 'armhf' }}
+        if: matrix.arch != 'armhf'
       - name: set container arch
         run: echo CONTAINER_ARCH="arm/v7" >> $GITHUB_ENV
-        if: ${{ matrix.arch == 'armhf' }}
+        if: matrix.arch == 'armhf'
       - name: download binary archive
         uses: actions/download-artifact@v4
         with:
@@ -148,4 +148,4 @@ jobs:
         run: for o in tests/*.out; do echo "===== $o ====="; cat "$o"; done
       - name: fail
         run: /bin/false
-        if: ${{ steps.root-test.outcome == 'failure' }}
+        if: steps.root-test.outcome != 'success'

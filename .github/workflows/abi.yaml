@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: set ABI branch
-        if: ${{ env.ABI_BRANCH == '' }}
+        if: env.ABI_BRANCH == ''
         run: echo "ABI_BRANCH=master" >> $GITHUB_ENV
       - name: checkout
         uses: actions/checkout@v4
@@ -55,10 +55,10 @@ jobs:
       - name: compare ABI against reference
         id: compare
         continue-on-error: true
-        if: ${{ steps.reference.outcome == 'success' }}
+        if: steps.reference.outcome == 'success'
         run: make abi-test
       - name: save differences
-        if: ${{ steps.compare.outcome == 'failure' }}
+        if: steps.compare.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: abi-test

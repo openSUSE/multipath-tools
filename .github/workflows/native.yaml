@@ -51,14 +51,14 @@ jobs:
       - name: set archive name
         # Leap containers have cpio but not tar
         run: echo ARCHIVE_TGT=test-progs.cpio >> $GITHUB_ENV
-        if: ${{ startswith(matrix.os, 'opensuse-leap-15') }}
+        if: startswith(matrix.os, 'opensuse-leap-15')
       - name: set archive name
         run: echo ARCHIVE_TGT=test-progs.tar >> $GITHUB_ENV
         if: ${{ !startswith(matrix.os, 'opensuse-leap-15') }}
 
       - name: build and test
         id: test
-        if: ${{ matrix.os != 'debian-jessie' }}
+        if: matrix.os != 'debian-jessie'
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
@@ -68,7 +68,7 @@ jobs:
       - name: build and test (jessie)
         id: test_jessie
         # On jessie, we use libreadline 5 (no licensing issue)
-        if: ${{ matrix.os == 'debian-jessie' }}
+        if: matrix.os == 'debian-jessie'
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
@@ -76,13 +76,13 @@ jobs:
         continue-on-error: true
 
       - name: create ${{ env.ARCHIVE_TGT }}
-        if: ${{ matrix.os != 'debian-jessie' }}
+        if: matrix.os != 'debian-jessie'
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
           command: ${{ env.ARCHIVE_TGT }}
       - name: create ${{ env.ARCHIVE_TGT }} (jessie)
-        if: ${{ matrix.os == 'debian-jessie' }}
+        if: matrix.os == 'debian-jessie'
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
@@ -132,14 +132,14 @@ jobs:
       - name: set archive name
         # Leap containers have cpio but not tar
         run: echo ARCHIVE_TGT=test-progs.cpio >> $GITHUB_ENV
-        if: ${{ startswith(matrix.os, 'opensuse-leap-15') }}
+        if: startswith(matrix.os, 'opensuse-leap-15')
       - name: set archive name
         run: echo ARCHIVE_TGT=test-progs.tar >> $GITHUB_ENV
         if: ${{ !startswith(matrix.os, 'opensuse-leap-15') }}
 
       - name: clang
         id: test
-        if: ${{ matrix.os != 'debian-jessie' }}
+        if: matrix.os != 'debian-jessie'
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
@@ -148,7 +148,7 @@ jobs:
         continue-on-error: true
       - name: clang (jessie)
         id: test_jessie
-        if: ${{ matrix.os == 'debian-jessie' }}
+        if: matrix.os == 'debian-jessie'
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
@@ -232,7 +232,7 @@ jobs:
           name: native-${{ matrix.os }}-${{ matrix.variant.arch }}
       - name: unpack binary archive
         run: cpio -idv < test-progs.cpio
-        if: ${{ startswith(matrix.os, 'opensuse-leap-15') }}
+        if: startswith(matrix.os, 'opensuse-leap-15')
       - name: unpack binary archive
         run: tar xfmv test-progs.tar
         if: ${{ !startswith(matrix.os, 'opensuse-leap-15') }}
@@ -253,4 +253,4 @@ jobs:
         run: for o in tests/*.out; do echo "===== $o ====="; cat "$o"; done
       - name: fail
         run: /bin/false
-        if: ${{ steps.root-test.outcome == 'failure' }}
+        if: steps.root-test.outcome == 'failure'
