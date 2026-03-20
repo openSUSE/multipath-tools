@@ -48,46 +48,51 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
 
+        # On jessie, we use libreadline 5 (no licensing issue)
+      - name: set readline make option (Jessie)
+        run: echo READLINE=libreadline >> $GITHUB_ENV
+        if: matrix.os == 'debian-jessie'
+
       - name: build and test
         id: test
-        if: matrix.os != 'debian-jessie'
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: -j$(nproc) -Orecurse test
-        continue-on-error: true
-
-      - name: build and test (jessie)
-        id: test_jessie
-        # On jessie, we use libreadline 5 (no licensing issue)
-        if: matrix.os == 'debian-jessie'
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: -j$(nproc) -Orecurse READLINE=libreadline test
+          command: -j$(nproc) -Orecurse V=1 READLINE=$READLINE test
         continue-on-error: true
 
       - name: create test-progs.tar
-        if: matrix.os != 'debian-jessie'
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
           command: test-progs.tar
 
-      - name: upload binary archive
+      - name: upload test-progs.tar
         uses: actions/upload-artifact@v4
         with:
           name: native-${{ matrix.os }}-${{ matrix.variant.arch }}
           path: test-progs.tar
           overwrite: true
 
-      - name: fail
+      - name: create test-outputs.tar
+        uses: mosteo-actions/docker-run@v1
+        with:
+          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
+          command: test-outputs.tar
+        if: steps.test.outcome != 'success'
+
+      - name: upload test-outputs.tar
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcc-outputs-${{ matrix.os }}-${{ matrix.variant.arch }}
+          path: test-outputs.tar
+          overwrite: true
+        if: steps.test.outcome != 'success'
+
+      - name: fail if test failed
         run: /bin/false
-        if: >-
-          ${{ ( matrix.os == 'debian-jessie' &&
-                steps.test_jessie.outcome != 'success' ) ||
-              ( matrix.os != 'debian-jessie' &&
-                steps.test.outcome != 'success' ) }}
+        if: steps.test.outcome != 'success'
+
   clang:
     strategy:
       fail-fast: false
@@ -115,65 +120,38 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
 
-      - name: clang
-        id: test
-        if: matrix.os != 'debian-jessie'
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          params: --pids-limit 4096 -e CC=clang
-          command: -j$(nproc) -Orecurse test
-        continue-on-error: true
-      - name: clang (jessie)
-        id: test_jessie
+        # On jessie, we use libreadline 5 (no licensing issue)
+      - name: set readline make option (Jessie)
+        run: echo READLINE=libreadline >> $GITHUB_ENV
         if: matrix.os == 'debian-jessie'
+
+      - name: build and test with clang
+        id: test
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
           params: --pids-limit 4096 -e CC=clang
-          command: -j$(nproc) -Orecurse READLINE=libreadline test
+          command: -j$(nproc) -Orecurse V=1 READLINE=$READLINE test
         continue-on-error: true
 
-      - name: create test-progs.tar
+      - name: create test-outputs.tar
         uses: mosteo-actions/docker-run@v1
         with:
           image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: test-progs.tar
-        if: >-
-          ${{ ( matrix.os == 'debian-jessie' &&
-                steps.test_jessie.outcome != 'success' ) ||
-              ( matrix.os != 'debian-jessie' &&
-                steps.test.outcome != 'success' ) }}
-      - name: create test-progs.tar (jessie)
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: READLINE=libreadline test-progs.tar
-        if: >-
-          ${{ ( matrix.os == 'debian-jessie' &&
-                steps.test_jessie.outcome != 'success' ) ||
-              ( matrix.os != 'debian-jessie' &&
-                steps.test.outcome != 'success' ) }}
+          command: test-outputs.tar
+        if: steps.test.outcome != 'success'
 
-      - name: upload binary archive
+      - name: upload test-outputs.tar
         uses: actions/upload-artifact@v4
         with:
-          name: clang-${{ matrix.os }}-${{ matrix.variant.arch }}
-          path: test-progs.tar
+          name: clang-outputs-${{ matrix.os }}-${{ matrix.variant.arch }}
+          path: test-outputs.tar
           overwrite: true
-        if: >-
-          ${{ ( matrix.os == 'debian-jessie' &&
-                steps.test_jessie.outcome != 'success' ) ||
-              ( matrix.os != 'debian-jessie' &&
-                steps.test.outcome != 'success' ) }}
+        if: steps.test.outcome != 'success'
 
-      - name: fail
+      - name: fail if test failed
         run: /bin/false
-        if: >-
-          ${{ ( matrix.os == 'debian-jessie' &&
-                steps.test_jessie.outcome != 'success' ) ||
-              ( matrix.os != 'debian-jessie' &&
-                steps.test.outcome != 'success' ) }}
+        if: steps.test.outcome != 'success'
 
   root-test:
     needs: stable
@@ -221,11 +199,25 @@ jobs:
           params: >
             --workdir /__w/multipath-tools/multipath-tools --privileged
             -v /dev/ram0:/dev/ram0 -e DIO_TEST_DEV=/dev/ram0
-          command: -C tests directio.out dmevents.out
-        id: root-test
+          command: -C tests V=1 directio.out dmevents.out
+        id: test
         continue-on-error: true
-      - name: show root test output
-        run: for o in tests/*.out; do echo "===== $o ====="; cat "$o"; done
-      - name: fail
+
+      - name: create test-outputs.tar
+        uses: mosteo-actions/docker-run@v1
+        with:
+          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
+          command: test-outputs.tar
+        if: steps.test.outcome != 'success'
+
+      - name: upload test-outputs.tar
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-outputs-${{ matrix.os }}-${{ matrix.variant.arch }}
+          path: test-outputs.tar
+          overwrite: true
+        if: steps.test.outcome != 'success'
+
+      - name: fail if test failed
         run: /bin/false
-        if: steps.root-test.outcome == 'failure'
+        if: steps.test.outcome != 'success'
