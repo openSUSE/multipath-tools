@@ -1199,6 +1199,18 @@ parse_vpd_pg83(const unsigned char *in, size_t in_len,
 	if (out_len <= 1)
 		return 0;
 
+	/*
+	 * Not a valid SPC-2/3 vpd page 83. Assume it's a SCSI-2 style
+	 * descriptor.
+	 */
+	if (in_len >= 20 && in[6] != 0) {
+		len = 0;
+		vpd_type = 0x3;
+		vpd_len = in_len - 4;
+		vpd = in + 4;
+		goto decode;
+	}
+
 	d = in + 4;
 	while (d <= in + in_len - 4) {
 		bool invalid = false;
@@ -1314,6 +1326,7 @@ parse_vpd_pg83(const unsigned char *in, size_t in_len,
 	vpd_type = vpd[1] & 0xf;
 	vpd_len = vpd[3];
 	vpd += 4;
+decode:
 	/* untaint vpd_len for coverity */
 	if (vpd_len > WWID_SIZE) {
 		condlog(1, "%s: suspicious designator length %zu truncated to %u",
