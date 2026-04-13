@@ -332,6 +332,28 @@ static int create_vpd83(unsigned char *buf, size_t bufsiz, const char *id,
 }
 
 /**
+ * create_pre_spc3_vpd83() - create pre-SPC3 "device identification" VPD page
+ *
+ * @buf, @bufsiz: see above.
+ * @id:		input ID (third byte must be non-zero)
+ *
+ * Create a pre-SPC3 "device identification" VPD page. See comments in
+ * sg3_utils/src/sg_inq.c for details
+ *
+ * Return:	VPD page length.
+ */
+static int create_pre_spc3_vpd83(unsigned char *buf, size_t bufsize,
+				 const char *id)
+{
+	memset(buf, 0, bufsize);
+	buf[1] = 0x83;
+
+	hex2bin(buf + 4, id, 16, 32);
+	put_unaligned_be16(16, buf + 2);
+	return 20;
+}
+
+/**
  * assert_correct_wwid() - test that a retrieved WWID matches expectations
  * @test:	test name
  * @expected:	expected WWID length
@@ -477,6 +499,30 @@ static void test_vpd_str_ ## typ ## _ ## len ## _ ## wlen(void **state) \
 			    exp_len, ret, byte0[type], 0,		\
 			    type != STR_IQN,				\
 			    test_id, vt->wwid);				\
+}
+
+/**
+ * test_vpd_prespc3_WLEN() - test code for pre-SPC3 VPD 83
+ * @WLEN:	WWID buffer size
+ */
+#define make_test_vpd_prespc3(wlen)					\
+static void test_vpd_prespc3_ ## wlen(void **state)			\
+{									\
+	struct vpdtest *vt = *state;					\
+	int n, ret;							\
+	int exp_len;							\
+									\
+	/* returned size is always uneven */				\
+	exp_len = wlen > 33 ? 33 :					\
+		wlen % 2 == 0 ? wlen - 1 : wlen - 2;			\
+									\
+	n = create_pre_spc3_vpd83(vt->vpdbuf, sizeof(vt->vpdbuf),	\
+				  test_id);				\
+	wrap_will_return(WRAP_IOCTL, n); 				\
+	wrap_will_return(WRAP_IOCTL, vt->vpdbuf);			\
+	ret = get_vpd_sgio(10, 0x83, 0, vt->wwid, wlen);		\
+	assert_correct_wwid("test_vpd_prespc3_" #wlen, exp_len, ret,	\
+			    '3', 0, true, test_id, vt->wwid);		\
 }
 
 /**
@@ -814,6 +860,13 @@ make_test_vpd_str(18, 20, 17)
 make_test_vpd_str(18, 20, 16)
 make_test_vpd_str(18, 20, 15)
 
+/* PRE-SPC3, WWID size: 34 */
+make_test_vpd_prespc3(40)
+make_test_vpd_prespc3(34)
+make_test_vpd_prespc3(33)
+make_test_vpd_prespc3(32)
+make_test_vpd_prespc3(20)
+
 static int test_vpd(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -945,6 +998,11 @@ static int test_vpd(void)
 		cmocka_unit_test(test_vpd_str_18_20_17),
 		cmocka_unit_test(test_vpd_str_18_20_16),
 		cmocka_unit_test(test_vpd_str_18_20_15),
+		cmocka_unit_test(test_vpd_prespc3_40),
+		cmocka_unit_test(test_vpd_prespc3_34),
+		cmocka_unit_test(test_vpd_prespc3_33),
+		cmocka_unit_test(test_vpd_prespc3_32),
+		cmocka_unit_test(test_vpd_prespc3_20),
 	};
 	return cmocka_run_group_tests(tests, setup, teardown);
 }
