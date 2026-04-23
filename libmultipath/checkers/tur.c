@@ -214,15 +214,15 @@ static void tur_deep_sleep(const struct tur_data *tdata)
 	int oldstate;
 
 	if (tdata->devt != makedev(TUR_TEST_MAJOR, TUR_TEST_MINOR) ||
-	    ++sleep_cnt % TUR_SLEEP_INTERVAL != 0)
+	    ++sleep_cnt % TUR_SLEEP_INTERVAL == 0)
 		return;
 
-	condlog(1, "tur thread going to sleep for %ld seconds", ts.tv_sec);
+	condlog(3, "tur thread going to sleep for %ld seconds", ts.tv_sec);
 	if (pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate) != 0)
 		condlog(0, "pthread_setcancelstate: %m");
 	if (nanosleep(&ts, NULL) != 0)
 		condlog(0, "nanosleep: %m");
-	condlog(1, "tur zombie thread woke up");
+	condlog(3, "tur zombie thread woke up");
 	if (pthread_setcancelstate(oldstate, NULL) != 0)
 		condlog(0, "pthread_setcancelstate (2): %m");
 	pthread_testcancel();
