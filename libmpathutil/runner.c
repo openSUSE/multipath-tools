@@ -134,7 +134,7 @@ repeat:
 		break;
 	case RUNNER_DONE:
 		st_new = RUNNER_DEAD;
-		/* fallthrough */
+		break;
 	case RUNNER_DEAD:
 		level = 3;
 		break;
