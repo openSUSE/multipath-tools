@@ -132,6 +132,7 @@ enum {
 };
 
 struct checker;
+struct runner_data;
 struct checker_class {
 	struct list_head node;
 	void *handle;
@@ -144,6 +145,7 @@ struct checker_class {
 	void (*reset)(void);		  /* to reset the global variables */
 	int (*pending)(struct checker *); /* to recheck pending paths */
 	bool (*need_wait)(struct checker *); /* checker needs waiting for */
+	int (*async_func)(struct runner_data *); /* callback for async_checker */
 	const char **msgtable;
 	short msgtable_size;
 };

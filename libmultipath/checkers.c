@@ -9,6 +9,7 @@
 
 #include "debug.h"
 #include "checkers.h"
+#include "async_checker.h"
 #include "vector.h"
 #include "util.h"
 
