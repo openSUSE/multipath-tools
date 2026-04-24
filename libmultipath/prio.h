@@ -45,7 +45,6 @@ struct path;
 
 struct prio {
 	void *handle;
-	int refcount;
 	struct list_head node;
 	char name[PRIO_NAME_LEN];
 	char args[PRIO_ARGS_LEN];

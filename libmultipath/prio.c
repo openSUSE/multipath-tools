@@ -53,28 +53,11 @@ int init_prio(void)
 	return 0;
 }
 
-static struct prio * alloc_prio (void)
+void free_prio(void *ptr)
 {
-	struct prio *p;
-
-	p = calloc(1, sizeof(struct prio));
-	if (p) {
-		INIT_LIST_HEAD(&p->node);
-		p->refcount = 1;
-	}
-	return p;
-}
-
-void free_prio (struct prio * p)
-{
+	struct prio *p = ptr;
 	if (!p)
 		return;
-	p->refcount--;
-	if (p->refcount) {
-		condlog(4, "%s prioritizer refcount %d",
-			p->name, p->refcount);
-		return;
-	}
 	condlog(3, "unloading %s prioritizer", p->name);
 	list_del(&p->node);
 	if (p->handle) {
@@ -83,7 +66,18 @@ void free_prio (struct prio * p)
 				p->name, dlerror());
 		}
 	}
-	free(p);
+}
+
+static struct prio *alloc_prio(void)
+{
+	struct prio *p;
+
+	p = alloc_shared_ptr(sizeof(*p), free_prio);
+	if (p) {
+		memset(p, 0, sizeof(*p));
+		INIT_LIST_HEAD(&p->node);
+	}
+	return p;
 }
 
 void cleanup_prio(void)
@@ -91,9 +85,8 @@ void cleanup_prio(void)
 	struct prio * prio_loop;
 	struct prio * prio_temp;
 
-	list_for_each_entry_safe(prio_loop, prio_temp, &prioritizers, node) {
-		free_prio(prio_loop);
-	}
+	list_for_each_entry_safe(prio_loop, prio_temp, &prioritizers, node)
+		put_shared_ptr(prio_loop);
 }
 
 static struct prio *prio_lookup(const char *name)
@@ -150,7 +143,7 @@ struct prio *add_prio (const char *name)
 	list_add(&p->node, &prioritizers);
 	return p;
 out:
-	free_prio(p);
+	put_shared_ptr(p);
 	return NULL;
 }
 
@@ -199,17 +192,17 @@ void prio_get(struct prio *dst, const char *name, const char *args)
 	dst->getprio = src->getprio;
 	dst->handle = NULL;
 
-	src->refcount++;
+	get_shared_ptr(src);
 }
 
 void prio_put (struct prio * dst)
 {
-	struct prio * src;
+	struct prio *src;
 
 	if (!dst || !dst->getprio)
 		return;
 
 	src = prio_lookup(dst->name);
 	memset(dst, 0x0, sizeof(struct prio));
-	free_prio(src);
+	put_shared_ptr(src);
 }
