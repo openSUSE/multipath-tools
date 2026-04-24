@@ -1,8 +1,6 @@
 /*
  * Copyright (c) 2005 Christophe Varoqui
  */
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -12,7 +10,7 @@
 #include <errno.h>
 
 #include "checkers.h"
-
+#include "async_checker.h"
 #include "sg_include.h"
 #include "unaligned.h"
 
@@ -27,20 +25,6 @@
 #define ILLEGAL_REQUEST		0x05
 #define MX_ALLOC_LEN		255
 #define HEAVY_CHECK_COUNT       10
-
-struct sw_checker_context {
-	void * dummy;
-};
-
-int libcheck_init (__attribute__((unused)) struct checker * c)
-{
-	return 0;
-}
-
-void libcheck_free (__attribute__((unused)) struct checker * c)
-{
-	return;
-}
 
 static int
 do_inq(int sg_fd, int cmddt, int evpd, unsigned int pg_op,
@@ -127,24 +111,24 @@ do_tur (int fd, unsigned int timeout)
 	return 0;
 }
 
-int libcheck_check(struct checker * c)
+int libcheck_async_func(struct runner_data *rdata)
 {
 	char buff[MX_ALLOC_LEN];
-	int ret = do_inq(c->fd, 0, 1, 0x80, buff, MX_ALLOC_LEN, c->timeout);
+	int ret = do_inq(rdata->fd, 0, 1, 0x80, buff, MX_ALLOC_LEN, rdata->timeout);
 
 	if (ret == PATH_WILD) {
-		c->msgid = CHECKER_MSGID_UNSUPPORTED;
+		rdata->msgid = CHECKER_MSGID_UNSUPPORTED;
 		return ret;
 	}
 	if (ret != PATH_UP) {
-		c->msgid = CHECKER_MSGID_DOWN;
+		rdata->msgid = CHECKER_MSGID_DOWN;
 		return ret;
 	};
 
-	if (do_tur(c->fd, c->timeout)) {
-		c->msgid = CHECKER_MSGID_GHOST;
+	if (do_tur(rdata->fd, rdata->timeout)) {
+		rdata->msgid = CHECKER_MSGID_GHOST;
 		return PATH_GHOST;
 	}
-	c->msgid = CHECKER_MSGID_UP;
+	rdata->msgid = CHECKER_MSGID_UP;
 	return PATH_UP;
 }
