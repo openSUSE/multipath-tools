@@ -30,7 +30,6 @@ const char *runner_state_name(int state)
 }
 
 struct runner_context {
-	int refcount;
 	int status;
 	struct timespec deadline;
 	pthread_t thr;
@@ -38,17 +37,6 @@ struct runner_context {
 	/* User data will be copied into this area */
 	char __attribute__((aligned(sizeof(void *)))) data[];
 };
-
-static void release_context(struct runner_context *rctx)
-{
-	int n;
-
-	n = uatomic_sub_return(&rctx->refcount, 1);
-	assert(n >= 0);
-
-	if (n == 0)
-		free(rctx);
-}
 
 static void cleanup_context(struct runner_context **prctx)
 {
@@ -65,7 +53,7 @@ static void cleanup_context(struct runner_context **prctx)
 			"%s: runner %p finished in state '%s'", __func__, rctx,
 			runner_state_name(st));
 	}
-	release_context(rctx);
+	put_shared_ptr(rctx);
 }
 
 static void *runner_thread(void *arg)
@@ -147,7 +135,7 @@ repeat:
 void release_runner(struct runner_context *rctx)
 {
 	cancel_runner(rctx);
-	release_context(rctx);
+	put_shared_ptr(rctx);
 }
 
 int check_runner(struct runner_context *rctx, void *data, unsigned int size)
@@ -195,17 +183,17 @@ struct runner_context *get_runner(runner_func func, void *data,
 		return NULL;
 	}
 
-	rctx = malloc(sizeof(*rctx) + size);
+	rctx = alloc_shared_ptr(sizeof(*rctx) + size, NULL);
 	if (!rctx)
 		return NULL;
 
 	rctx->func = func;
 	/*
-	 * We have to set the refcount to 2 here. The runner thread may be
-	 * cancelled before it even had the chance to increase the refcount,
-	 * which could result in a use-after-free in cleanup_context().
+	 * Take an additional reference here. The runner thread may be
+	 * cancelled before it even had the chance to take a reference, which
+	 * could result in a use-after-free in cleanup_context().
 	 */
-	uatomic_set(&rctx->refcount, 2);
+	get_shared_ptr(rctx);
 	uatomic_set(&rctx->status, RUNNER_IDLE);
 	memcpy(rctx->data, data, size);
 
@@ -222,8 +210,8 @@ struct runner_context *get_runner(runner_func func, void *data,
 
 	if (rc) {
 		condlog(1, "%s: pthread_create(): %s", __func__, strerror(rc));
-		uatomic_dec(&rctx->refcount);
-		release_context(rctx);
+		put_shared_ptr(rctx);
+		put_shared_ptr(rctx);
 		return NULL;
 	}
 	return rctx;
