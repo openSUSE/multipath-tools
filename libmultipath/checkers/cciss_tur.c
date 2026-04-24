@@ -24,47 +24,33 @@
 #include <errno.h>
 
 #include "checkers.h"
+#include "async_checker.h"
 
 #include "cciss.h"
 
 #define TUR_CMD_LEN 6
 #define HEAVY_CHECK_COUNT       10
 
-struct cciss_tur_checker_context {
-	void * dummy;
-};
-
-int libcheck_init (__attribute__((unused)) struct checker * c)
-{
-	return 0;
-}
-
-void libcheck_free (__attribute__((unused)) struct checker * c)
-{
-	return;
-}
-
-int libcheck_check(struct checker * c)
+int libcheck_async_func(struct runner_data *rdata)
 {
 	int rc;
 	int ret;
 	unsigned int lun = 0;
-	struct cciss_tur_checker_context * ctxt = NULL;
 	LogvolInfo_struct    lvi;       // logical "volume" info
 	IOCTL_Command_struct cic;       // cciss ioctl command
 
-	if ((c->fd) < 0) {
-		c->msgid = CHECKER_MSGID_NO_FD;
+	if ((rdata->fd) < 0) {
+		rdata->msgid = CHECKER_MSGID_NO_FD;
 		ret = -1;
 		goto out;
 	}
 
-	rc = ioctl(c->fd, CCISS_GETLUNINFO, &lvi);
+	rc = ioctl(rdata->fd, CCISS_GETLUNINFO, &lvi);
 	if ( rc != 0) {
 		perror("Error: ");
 		fprintf(stderr, "cciss TUR  failed in CCISS_GETLUNINFO: %s\n",
 			strerror(errno));
-		c->msgid = CHECKER_MSGID_DOWN;
+		rdata->msgid = CHECKER_MSGID_DOWN;
 		ret = PATH_DOWN;
 		goto out;
 	} else {
@@ -87,31 +73,24 @@ int libcheck_check(struct checker * c)
 	cic.Request.CDB[4] = 0;
 	cic.Request.CDB[5] = 0;
 
-	rc = ioctl(c->fd, CCISS_PASSTHRU, &cic);
+	rc = ioctl(rdata->fd, CCISS_PASSTHRU, &cic);
 	if (rc < 0) {
 		fprintf(stderr, "cciss TUR  failed: %s\n",
 			strerror(errno));
-		c->msgid = CHECKER_MSGID_DOWN;
+		rdata->msgid = CHECKER_MSGID_DOWN;
 		ret = PATH_DOWN;
 		goto out;
 	}
 
 	if ((cic.error_info.CommandStatus | cic.error_info.ScsiStatus )) {
-		c->msgid = CHECKER_MSGID_DOWN;
+		rdata->msgid = CHECKER_MSGID_DOWN;
 		ret = PATH_DOWN;
 		goto out;
 	}
 
-	c->msgid = CHECKER_MSGID_UP;
+	rdata->msgid = CHECKER_MSGID_UP;
 
 	ret = PATH_UP;
 out:
-	/*
-	 * caller told us he doesn't want to keep the context :
-	 * free it
-	 */
-	if (!c->context)
-		free(ctxt);
-
 	return(ret);
 }
