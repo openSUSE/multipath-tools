@@ -227,7 +227,7 @@ void do_check_state(struct checker *c, int sync, int chk_state)
 
 void do_libcheck_pending(struct checker *c, int chk_state)
 {
-	assert_int_equal(libcheck_pending(c), chk_state);
+	assert_int_equal(libcheck_pending(c, NULL), chk_state);
 	assert_int_equal(ev_off, 0);
 	memset(mock_events, 0, sizeof(mock_events));
 }

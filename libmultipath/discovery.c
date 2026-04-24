@@ -1998,20 +1998,18 @@ start_checker (struct path * pp, struct config *conf, int daemon, int oldstate)
 			return -1;
 		}
 		checker_set_fd(c, pp->fd);
-		if (checker_init(c, pp->mpp?&pp->mpp->mpcontext:NULL)) {
+		if (checker_init(c)) {
 			checker_clear(c);
 			condlog(3, "%s: checker init failed", pp->dev);
 			return -1;
 		}
 	}
-	if (pp->mpp && !c->mpcontext)
-		checker_mp_init(c, &pp->mpp->mpcontext);
 	checker_clear_message(c);
 	if (conf->force_sync == 0)
 		checker_set_async(c);
 	else
 		checker_set_sync(c);
-	checker_check(c, oldstate);
+	checker_check(pp, oldstate);
 	return 0;
 }
 
@@ -2021,7 +2019,7 @@ get_state (struct path * pp)
 	struct checker * c = &pp->checker;
 	int state, lvl;
 
-	state = checker_get_state(c);
+	state = checker_get_state(pp);
 
 	lvl = state == pp->oldstate || state == PATH_PENDING ? 4 : 3;
 	condlog(lvl, "%s: %s state = %s", pp->dev,

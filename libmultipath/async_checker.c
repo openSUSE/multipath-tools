@@ -7,8 +7,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <dlfcn.h>
-#include "async_checker.h"
 #include "checkers.h"
+#include "async_checker.h"
 #include "debug.h"
 #include "runner.h"
 
@@ -59,6 +59,7 @@ int async_check_init(struct checker *c)
 	acc->rdata.fd = -1;
 	if (fstat(c->fd, &sb) == 0)
 		acc->rdata.devt = sb.st_rdev;
+	SET_INVALID_MPCONTEXT(acc->rdata.mpc);
 	c->context = acc;
 	if (acc->async_init)
 		return acc->async_init(&acc->rdata);
@@ -147,35 +148,42 @@ bool async_check_need_wait(struct checker *c)
 	return acc && acc->rtx;
 }
 
-int async_check_pending(struct checker *c)
+int async_check_pending(struct checker *c, union checker_mpcontext *mpc)
 {
 	struct async_checker_context *acc = c->context;
+	int rc;
 	/* The if path checker isn't running, just return the exiting value. */
 	if (!acc || !acc->rtx)
 		return c->path_state;
 
-	/* This may nullify ct->rtx */
-	check_runner_state(acc);
+	/* This may nullify acc->rtx */
+	rc = check_runner_state(acc);
 	c->msgid = acc->rdata.msgid;
+	if (rc == RUNNER_DONE && mpc && !IS_INVALID_MPCONTEXT(acc->rdata.mpc))
+		*mpc = acc->rdata.mpc;
 	return acc->rdata.state;
 }
 
-int async_check_check(struct checker *c)
+int async_check_check(struct checker *c, union checker_mpcontext *mpc)
 {
 	struct async_checker_context *acc = c->context;
 
 	if (!acc)
 		return PATH_UNCHECKED;
 
-	if (checker_is_sync(c))
-		return acc->rdata.afunc(&acc->rdata);
+	if (mpc && !IS_INVALID_MPCONTEXT(*mpc))
+		acc->rdata.mpc = *mpc;
 
-	/* Handle the case that the checker just completed */
-	if (acc->rtx) {
-		check_runner_state(acc);
-		c->msgid = acc->rdata.msgid;
-		return acc->rdata.state;
+	if (checker_is_sync(c)) {
+		int rc = acc->rdata.afunc(&acc->rdata);
+
+		if (mpc && !IS_INVALID_MPCONTEXT(acc->rdata.mpc))
+			*mpc = acc->rdata.mpc;
+		return rc;
 	}
+	/* Handle the case that the checker just completed */
+	if (acc->rtx)
+		return async_check_pending(c, mpc);
 
 	/* create new checker thread */
 	acc->rdata.fd = c->fd;

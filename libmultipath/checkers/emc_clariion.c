@@ -15,6 +15,7 @@
 #include "libsg.h"
 #include "checkers.h"
 #include "debug.h"
+#include "util.h"
 
 #define INQUIRY_CMD     0x12
 #define INQUIRY_CMDLEN  6
@@ -32,18 +33,20 @@
  * simple read test would return 02/04/03 instead
  * of 05/25/01 sensekey/ASC/ASCQ data.
  */
-#define	IS_INACTIVE_SNAP(c)   (c->mpcontext ?				   \
-			       ((struct emc_clariion_checker_LU_context *) \
-					(*c->mpcontext))->inactive_snap	   \
-					    : 0)
+#define IS_INACTIVE_SNAP(mpctx)				\
+	(!mpctx || IS_INVALID_MPCONTEXT(*mpctx) ? 0 : mpctx->long_val)
 
-#define	SET_INACTIVE_SNAP(c)  if (c->mpcontext)				   \
-				((struct emc_clariion_checker_LU_context *)\
-					(*c->mpcontext))->inactive_snap = 1
+#define SET_INACTIVE_SNAP(mpctx)		\
+	do {					\
+		if (mpctx)			\
+			mpctx->long_val = 1;	\
+	} while (0);
 
-#define	CLR_INACTIVE_SNAP(c)  if (c->mpcontext)				   \
-				((struct emc_clariion_checker_LU_context *)\
-					(*c->mpcontext))->inactive_snap = 0
+#define CLR_INACTIVE_SNAP(mpctx)		\
+	do {					\
+		if (mpctx)			\
+			mpctx->long_val = 0;	\
+	} while (0);
 
 enum {
 	MSG_CLARIION_QUERY_FAILED = CHECKER_FIRST_MSGID,
@@ -109,28 +112,12 @@ int libcheck_init (struct checker * c)
 	return 0;
 }
 
-int libcheck_mp_init (struct checker * c)
-{
-	/*
-	 * Allocate and initialize the multi-path global context.
-	 */
-	if (c->mpcontext && *c->mpcontext == NULL) {
-		void * mpctxt = malloc(sizeof(int));
-		if (!mpctxt)
-			return 1;
-		*c->mpcontext = mpctxt;
-		CLR_INACTIVE_SNAP(c);
-	}
-
-	return 0;
-}
-
-void libcheck_free (struct checker * c)
+void libcheck_free(struct checker *c)
 {
 	free(c->context);
 }
 
-int libcheck_check (struct checker * c)
+int libcheck_check(struct checker *c, union checker_mpcontext *mpctx)
 {
 	unsigned char sense_buffer[128] = { 0, };
 	unsigned char sb[SENSE_BUFF_LEN] = { 0, }, *sbb;
@@ -282,7 +269,7 @@ retry:
 				 * passive paths which will return
 				 * 02/04/03 not 05/25/01 on read.
 				 */
-				SET_INACTIVE_SNAP(c);
+				SET_INACTIVE_SNAP(mpctx);
 				condlog(3, "emc_clariion_checker: Active "
 					"path to inactive snapshot WWN %s.",
 					wwnstr);
@@ -300,10 +287,10 @@ retry:
 			 * snapshot LUs if it was in this list since the
 			 * snapshot is no longer inactive.
 			 */
-			CLR_INACTIVE_SNAP(c);
+			CLR_INACTIVE_SNAP(mpctx);
 		}
 	} else {
-		if (IS_INACTIVE_SNAP(c)) {
+		if (IS_INACTIVE_SNAP(mpctx)) {
 			hexadecimal_to_ascii(ct->wwn, wwnstr);
 			condlog(3, "emc_clariion_checker: Passive "
 				"path to inactive snapshot WWN %s.",

@@ -540,8 +540,7 @@ struct multipath {
 	unsigned int stat_queueing_timeouts;
 	unsigned int stat_map_failures;
 
-	/* checkers shared data */
-	void * mpcontext;
+	union checker_mpcontext mpcontext;
 
 	/* persistent management data*/
 	int prkey_source;

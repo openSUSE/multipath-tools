@@ -14,14 +14,15 @@ struct runner_data {
 	unsigned int timeout;
 	int state;
 	short msgid;
+	union checker_mpcontext mpc;
 	char __attribute__((aligned(sizeof(void *)))) checker_ctx[];
 };
 
 int async_check_init(struct checker *c);
 void async_check_free(struct checker *c);
 bool async_check_need_wait(struct checker *c);
-int async_check_pending(struct checker *c);
-int async_check_check(struct checker *c);
+int async_check_pending(struct checker *c, union checker_mpcontext *mpctx);
+int async_check_check(struct checker *c, union checker_mpcontext *mpctx);
 
 #define CHECKER_MAX_CONTEXT_SIZE 1024
 

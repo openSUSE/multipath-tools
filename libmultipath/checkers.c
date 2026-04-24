@@ -12,6 +12,7 @@
 #include "async_checker.h"
 #include "vector.h"
 #include "util.h"
+#include "structs.h"
 
 static const char * const checker_dir = MULTIPATH_DIR;
 
@@ -164,7 +165,8 @@ static struct checker_class *add_checker_class(const char *name)
 	if (c->async_func)
 		return add_async_checker_class(c);
 
-	c->check = (int (*)(struct checker *)) dlsym(c->handle, "libcheck_check");
+	c->check = (int (*)(struct checker *, union checker_mpcontext *))
+		dlsym(c->handle, "libcheck_check");
 	errstr = dlerror();
 	if (errstr != NULL)
 		condlog(0, "A dynamic linking error occurred: (%s)", errstr);
@@ -178,9 +180,9 @@ static struct checker_class *add_checker_class(const char *name)
 	if (!c->init)
 		goto out;
 
-	c->mp_init = (int (*)(struct checker *)) dlsym(c->handle, "libcheck_mp_init");
 	c->reset = (void (*)(void))dlsym(c->handle, "libcheck_reset");
-	c->pending = (int (*)(struct checker *)) dlsym(c->handle, "libcheck_pending");
+	c->pending = (int (*)(struct checker *, union checker_mpcontext *))
+		dlsym(c->handle, "libcheck_pending");
 	c->need_wait = (bool (*)(struct checker *)) dlsym(c->handle, "libcheck_need_wait");
 	/* These 5 functions can be NULL. call dlerror() to clear out any
 	 * error string */
@@ -239,31 +241,12 @@ void checker_disable (struct checker * c)
 	c->path_state = PATH_UNCHECKED;
 }
 
-int checker_init (struct checker * c, void ** mpctxt_addr)
+int checker_init(struct checker *c)
 {
 	if (!c || !c->cls)
 		return 1;
-	c->mpcontext = mpctxt_addr;
 	if (c->cls->init && c->cls->init(c) != 0)
 		return 1;
-	if (mpctxt_addr && *mpctxt_addr == NULL && c->cls->mp_init &&
-	    c->cls->mp_init(c) != 0) /* continue even if mp_init fails */
-		c->mpcontext = NULL;
-	return 0;
-}
-
-int checker_mp_init(struct checker * c, void ** mpctxt_addr)
-{
-	if (!c || !c->cls)
-		return 1;
-	if (c->mpcontext || !mpctxt_addr)
-		return 0;
-	c->mpcontext = mpctxt_addr;
-	if (*mpctxt_addr == NULL && c->cls->mp_init &&
-	    c->cls->mp_init(c) != 0) {
-		c->mpcontext = NULL;
-		return 1;
-	}
 	return 0;
 }
 
@@ -287,13 +270,17 @@ void checker_put (struct checker * dst)
 	put_shared_ptr(src);
 }
 
-int checker_get_state(struct checker *c)
+int checker_get_state(struct path *pp)
 {
+	struct checker *c = &pp->checker;
+	union checker_mpcontext *mpc;
+
 	if (!c || !c->cls)
 		return PATH_UNCHECKED;
 	if (c->path_state != PATH_PENDING || !c->cls->pending)
 		return c->path_state;
-	c->path_state = c->cls->pending(c);
+	mpc = pp->mpp ? &pp->mpp->mpcontext : NULL;
+	c->path_state = c->cls->pending(c, mpc);
 	return c->path_state;
 }
 
@@ -305,8 +292,10 @@ bool checker_need_wait(struct checker *c)
 	return c->cls->need_wait(c);
 }
 
-void checker_check (struct checker * c, int path_state)
+void checker_check(struct path *pp, int path_state)
 {
+	struct checker *c = &pp->checker;
+
 	if (!c)
 		return;
 
@@ -320,7 +309,10 @@ void checker_check (struct checker * c, int path_state)
 		c->msgid = CHECKER_MSGID_NO_FD;
 		c->path_state = PATH_WILD;
 	} else {
-		c->path_state = c->cls->check(c);
+		union checker_mpcontext *mpc;
+
+		mpc = pp->mpp ? &pp->mpp->mpcontext : NULL;
+		c->path_state = c->cls->check(c, mpc);
 	}
 }
 
