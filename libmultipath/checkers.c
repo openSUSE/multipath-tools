@@ -365,6 +365,8 @@ static const char *generic_msg[CHECKER_GENERIC_MSGTABLE_SIZE] = {
 	[CHECKER_MSGID_GHOST] = " reports path is ghost",
 	[CHECKER_MSGID_UNSUPPORTED] = " doesn't support this device",
 	[CHECKER_MSGID_DISCONNECTED] = " no access to this device",
+	[CHECKER_MSGID_TIMEOUT] = " timed out",
+	[CHECKER_MSGID_RUNNING] = " still running",
 };
 
 const char *checker_message(const struct checker *c)
