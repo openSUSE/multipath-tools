@@ -160,4 +160,9 @@ void cleanup_charp(char **p);
 void cleanup_ucharp(unsigned char **p);
 void cleanup_udev_device(struct udev_device **udd);
 void cleanup_bitfield(union bitfield **p);
+
+void *alloc_shared_ptr(size_t size, void (*destructor)(void *));
+void get_shared_ptr(void *ptr);
+void put_shared_ptr(void *ptr);
+
 #endif /* UTIL_H_INCLUDED */

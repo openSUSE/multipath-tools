@@ -194,3 +194,10 @@ global:
 local:
 	*;
 };
+
+LIBMPATHUTIL_6.1 {
+global:
+	alloc_shared_ptr;
+	get_shared_ptr;
+	put_shared_ptr;
+} LIBMPATHUTIL_6.0;

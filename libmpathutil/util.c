@@ -12,15 +12,13 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <errno.h>
+#include <urcu/uatomic.h>
 #include "mt-udev-wrap.h"
 
 #include "util.h"
 #include "debug.h"
-#include "checkers.h"
 #include "vector.h"
-#include "structs.h"
-#include "config.h"
-#include "log.h"
+#include "list.h"
 
 size_t
 strchop(char *str)
@@ -383,4 +381,45 @@ void cleanup_udev_device(struct udev_device **udd)
 {
 	if (*udd)
 		udev_device_unref(*udd);
+}
+
+struct shared_ptr {
+	long refcnt;
+	void (*destructor)(void *);
+	char __attribute__((aligned(sizeof(void *)))) ptr[];
+};
+
+void *alloc_shared_ptr(size_t size, void (*destructor)(void *))
+{
+	struct shared_ptr *sp = malloc(sizeof(*sp) + size);
+
+	if (!sp)
+		return NULL;
+	uatomic_set(&sp->refcnt, 1);
+	sp->destructor = destructor;
+	return sp->ptr;
+}
+
+void get_shared_ptr(void *ptr)
+{
+	struct shared_ptr *sp;
+
+	assert(ptr != NULL);
+	sp = container_of(ptr, struct shared_ptr, ptr);
+
+	if (uatomic_add_return(&sp->refcnt, 1) < 0)
+		condlog(0, "%s: refcount overflow", __func__);
+}
+
+void put_shared_ptr(void *ptr)
+{
+	struct shared_ptr *sp;
+
+	assert(ptr != NULL);
+	sp = container_of(ptr, struct shared_ptr, ptr);
+	if (uatomic_sub_return(&sp->refcnt, 1) == 0) {
+		if (sp->destructor)
+			sp->destructor(ptr);
+		free(sp);
+	}
 }
