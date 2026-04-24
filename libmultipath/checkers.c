@@ -14,24 +14,6 @@
 
 static const char * const checker_dir = MULTIPATH_DIR;
 
-struct checker_class {
-	struct list_head node;
-	void *handle;
-	int refcount;
-	int sync;
-	char name[CHECKER_NAME_LEN];
-	int (*check)(struct checker *);
-	int (*init)(struct checker *);       /* to allocate the context */
-	int (*mp_init)(struct checker *);    /* to allocate the mpcontext */
-	void (*free)(struct checker *);      /* to free the context */
-	void (*reset)(void);		     /* to reset the global variables */
-	void *(*thread)(void *);	     /* async thread entry point */
-	int (*pending)(struct checker *);    /* to recheck pending paths */
-	bool (*need_wait)(struct checker *); /* checker needs waiting for */
-	const char **msgtable;
-	short msgtable_size;
-};
-
 static const char *checker_state_names[PATH_MAX_STATE] = {
 	[PATH_WILD] = "wild",
 	[PATH_UNCHECKED] = "unchecked",

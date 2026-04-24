@@ -131,7 +131,25 @@ enum {
 	CHECKER_MSGTABLE_SIZE = 100, /* max msg table size for checkers */
 };
 
-struct checker_class;
+struct checker;
+struct checker_class {
+	struct list_head node;
+	void *handle;
+	int refcount;
+	int sync;
+	char name[CHECKER_NAME_LEN];
+	int (*check)(struct checker *);
+	int (*init)(struct checker *);	  /* to allocate the context */
+	int (*mp_init)(struct checker *); /* to allocate the mpcontext */
+	void (*free)(struct checker *);	  /* to free the context */
+	void (*reset)(void);		  /* to reset the global variables */
+	void *(*thread)(void *);	  /* async thread entry point */
+	int (*pending)(struct checker *); /* to recheck pending paths */
+	bool (*need_wait)(struct checker *); /* checker needs waiting for */
+	const char **msgtable;
+	short msgtable_size;
+};
+
 struct checker {
 	struct checker_class *cls;
 	int fd;
