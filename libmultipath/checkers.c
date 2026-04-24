@@ -101,6 +101,18 @@ void reset_checker_classes(void)
 	}
 }
 
+static struct checker_class *add_async_checker_class(struct checker_class *c)
+{
+	c->init = async_check_init;
+	c->check = async_check_check;
+	c->need_wait = async_check_need_wait;
+	c->pending = async_check_pending;
+	c->free = async_check_free;
+
+	list_add(&c->node, &checkers);
+	return c;
+}
+
 static struct checker_class *add_checker_class(const char *name)
 {
 	char libname[LIB_CHECKER_NAMELEN];
@@ -129,6 +141,29 @@ static struct checker_class *add_checker_class(const char *name)
 				errstr);
 		goto out;
 	}
+
+	c->msgtable_size = 0;
+	c->msgtable = dlsym(c->handle, "libcheck_msgtable");
+
+	if (c->msgtable != NULL) {
+		const char **p;
+
+		for (p = c->msgtable;
+		     *p && (p - c->msgtable) < CHECKER_MSGTABLE_SIZE; p++)
+			/* nothing */;
+
+		c->msgtable_size = p - c->msgtable;
+	} else
+		c->msgtable_size = 0;
+	condlog(3, "checker %s: message table size = %d", c->name,
+		c->msgtable_size);
+
+	c->async_func = (int (*)(struct runner_data *))
+		dlsym(c->handle, "libcheck_async_func");
+	errstr = dlerror();
+	if (c->async_func)
+		return add_async_checker_class(c);
+
 	c->check = (int (*)(struct checker *)) dlsym(c->handle, "libcheck_check");
 	errstr = dlerror();
 	if (errstr != NULL)
@@ -157,22 +192,6 @@ static struct checker_class *add_checker_class(const char *name)
 		condlog(0, "A dynamic linking error occurred: (%s)", errstr);
 	if (!c->free)
 		goto out;
-
-	c->msgtable_size = 0;
-	c->msgtable = dlsym(c->handle, "libcheck_msgtable");
-
-	if (c->msgtable != NULL) {
-		const char **p;
-
-		for (p = c->msgtable;
-		     *p && (p - c->msgtable) < CHECKER_MSGTABLE_SIZE; p++)
-			/* nothing */;
-
-		c->msgtable_size = p - c->msgtable;
-	} else
-		c->msgtable_size = 0;
-	condlog(3, "checker %s: message table size = %d",
-		c->name, c->msgtable_size);
 
 done:
 	c->sync = 1;
