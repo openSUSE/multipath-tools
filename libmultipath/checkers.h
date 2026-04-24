@@ -180,9 +180,6 @@ void checker_set_async (struct checker *);
 void checker_set_fd (struct checker *, int);
 void checker_enable (struct checker *);
 void checker_disable(struct checker *);
-struct checker_context {
-	struct checker_class *cls;
-};
 int checker_get_state(struct checker *c);
 bool checker_need_wait(struct checker *c);
 void checker_check (struct checker *, int);
