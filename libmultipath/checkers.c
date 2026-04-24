@@ -39,41 +39,11 @@ const char *checker_state_name(int i)
 	return checker_state_names[i];
 }
 
-static struct checker_class *alloc_checker_class(void)
+static void free_checker_class(void *ptr)
 {
-	struct checker_class *c;
-
-	c = calloc(1, sizeof(struct checker_class));
-	if (c) {
-		INIT_LIST_HEAD(&c->node);
-		uatomic_set(&c->refcount, 1);
-	}
-	return c;
-}
-
-/* Use uatomic_{sub,add}_return() to ensure proper memory barriers */
-static int checker_class_ref(struct checker_class *cls)
-{
-	return uatomic_add_return(&cls->refcount, 1);
-}
-
-static int checker_class_unref(struct checker_class *cls)
-{
-	return uatomic_sub_return(&cls->refcount, 1);
-}
-
-void free_checker_class(struct checker_class *c)
-{
-	int cnt;
-
+	struct checker_class *c = ptr;
 	if (!c)
 		return;
-	cnt = checker_class_unref(c);
-	if (cnt != 0) {
-		condlog(cnt < 0 ? 1 : 4, "%s checker refcount %d",
-			c->name, cnt);
-		return;
-	}
 	condlog(3, "unloading %s checker", c->name);
 	list_del(&c->node);
 	if (c->reset)
@@ -84,7 +54,18 @@ void free_checker_class(struct checker_class *c)
 				c->name, dlerror());
 		}
 	}
-	free(c);
+}
+
+static struct checker_class *alloc_checker_class(void)
+{
+	struct checker_class *c;
+
+	c = alloc_shared_ptr(sizeof(*c), free_checker_class);
+	if (c) {
+		memset(c, 0, sizeof(*c));
+		INIT_LIST_HEAD(&c->node);
+	}
+	return c;
 }
 
 void cleanup_checkers (void)
@@ -92,9 +73,8 @@ void cleanup_checkers (void)
 	struct checker_class *checker_loop;
 	struct checker_class *checker_temp;
 
-	list_for_each_entry_safe(checker_loop, checker_temp, &checkers, node) {
-		free_checker_class(checker_loop);
-	}
+	list_for_each_entry_safe(checker_loop, checker_temp, &checkers, node)
+		put_shared_ptr(checker_loop);
 }
 
 static struct checker_class *checker_class_lookup(const char *name)
@@ -198,7 +178,7 @@ done:
 	list_add(&c->node, &checkers);
 	return c;
 out:
-	free_checker_class(c);
+	put_shared_ptr(c);
 	return NULL;
 }
 
@@ -284,7 +264,7 @@ void checker_put (struct checker * dst)
 	if (src && src->free)
 		src->free(dst);
 	checker_clear(dst);
-	free_checker_class(src);
+	put_shared_ptr(src);
 }
 
 int checker_get_state(struct checker *c)
@@ -393,7 +373,7 @@ void checker_get(struct checker *dst, const char *name)
 	if (!src)
 		return;
 
-	(void)checker_class_ref(dst->cls);
+	get_shared_ptr(dst->cls);
 }
 
 int init_checkers(void)

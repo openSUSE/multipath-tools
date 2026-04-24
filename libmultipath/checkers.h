@@ -135,7 +135,6 @@ struct checker;
 struct checker_class {
 	struct list_head node;
 	void *handle;
-	int refcount;
 	int sync;
 	char name[CHECKER_NAME_LEN];
 	int (*check)(struct checker *);
@@ -200,7 +199,6 @@ void checker_get(struct checker *, const char *);
 int libcheck_check(struct checker *);
 int libcheck_init(struct checker *);
 void libcheck_free(struct checker *);
-void *libcheck_thread(struct checker_context *ctx);
 void libcheck_reset(void);
 int libcheck_mp_init(struct checker *);
 int libcheck_pending(struct checker *c);
