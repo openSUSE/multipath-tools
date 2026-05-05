@@ -6,35 +6,62 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <dlfcn.h>
 #include "async_checker.h"
 #include "checkers.h"
 #include "debug.h"
 #include "runner.h"
 
 #define MAX_NR_TIMEOUTS 1
+typedef int (*async_init_func)(struct runner_data *);
 
 struct async_checker_context {
 	int last_runner_state;
 	unsigned int nr_timeouts;
 	struct runner_context *rtx;
+	async_init_func async_init;
+	int async_context_size;
 	struct runner_data rdata;
 };
 
-#define rdata_size(acc) (sizeof(acc->rdata))
+#define rdata_size(acc) (sizeof(acc->rdata) + acc->async_context_size)
 
 int async_check_init(struct checker *c)
 {
 	struct async_checker_context *acc;
 	struct stat sb;
+	const int *p_ctx_size;
+	int ctx_size;
+	char *errstr __attribute__((unused));
 
-	acc = calloc(1, sizeof(*acc));
+	p_ctx_size = dlsym(c->cls->handle, "libcheck_async_context_size");
+	errstr = dlerror();
+	if (p_ctx_size)
+		ctx_size = *p_ctx_size;
+	else
+		ctx_size = 0;
+
+	if (ctx_size < 0 || ctx_size > CHECKER_MAX_CONTEXT_SIZE) {
+		condlog(0, "%s: invalid context size %d", __func__, ctx_size);
+		return -1;
+	}
+	condlog(3, "%s: extra context size: %d", __func__, ctx_size);
+	acc = calloc(1, sizeof(*acc) + ctx_size);
 	if (!acc)
 		return -1;
+
+	acc->async_context_size = ctx_size;
+	acc->async_init = (int (*)(struct runner_data *))
+		dlsym(c->cls->handle, "libcheck_async_init");
+	errstr = dlerror();
+
 	acc->rdata.state = PATH_UNCHECKED;
 	acc->rdata.fd = -1;
 	if (fstat(c->fd, &sb) == 0)
 		acc->rdata.devt = sb.st_rdev;
 	c->context = acc;
+	if (acc->async_init)
+		return acc->async_init(&acc->rdata);
 	return 0;
 }
 
