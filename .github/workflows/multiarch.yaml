@@ -55,6 +55,10 @@ jobs:
         uses: docker/setup-qemu-action@v2
         with:
           image: tonistiigi/binfmt:latest
+      - name: set architecture name
+        run: |
+          __arch="${{ matrix.arch }}"
+          echo "ARCH_NAME=${__arch//\//-}" >>"$GITHUB_ENV"
       - name: compile and run unit tests
         id: test
         uses: mosteo-actions/docker-run@v1
@@ -79,13 +83,13 @@ jobs:
       - name: upload binary archive
         uses: actions/upload-artifact@v4
         with:
-          name: binaries-${{ matrix.os }}-${{ matrix.arch }}
+          name: binaries-${{ matrix.os }}w-${{ env.ARCH_NAME }}
           path: test-progs.tar
         if: steps.test.outcome != 'success'
       - name: upload test outputs
         uses: actions/upload-artifact@v4
         with:
-          name: test-${{ matrix.os }}-${{ matrix.arch }}
+          name: test-${{ matrix.os }}-${{ env.ARCH_NAME }}
           path: test-outputs.tar
           overwrite: true
         if: steps.test.outcome != 'success'
