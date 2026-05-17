@@ -221,7 +221,6 @@ global:
 	/* checkers */
 	checker_is_sync;
 	sg_read;
-	start_checker_thread;
 
 	/* prioritizers */
 	get_asymmetric_access_state;

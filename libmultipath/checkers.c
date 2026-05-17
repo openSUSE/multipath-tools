@@ -163,8 +163,7 @@ static struct checker_class *add_checker_class(const char *name)
 		goto out;
 
 	c->mp_init = (int (*)(struct checker *)) dlsym(c->handle, "libcheck_mp_init");
-	c->reset = (void (*)(void)) dlsym(c->handle, "libcheck_reset");
-	c->thread = (void *(*)(void*)) dlsym(c->handle, "libcheck_thread");
+	c->reset = (void (*)(void))dlsym(c->handle, "libcheck_reset");
 	c->pending = (int (*)(struct checker *)) dlsym(c->handle, "libcheck_pending");
 	c->need_wait = (bool (*)(struct checker *)) dlsym(c->handle, "libcheck_need_wait");
 	/* These 5 functions can be NULL. call dlerror() to clear out any
@@ -369,43 +368,6 @@ const char *checker_message(const struct checker *c)
 
 bad_id:
 	return generic_msg[CHECKER_MSGID_NONE];
-}
-
-static void checker_cleanup_thread(void *arg)
-{
-	struct checker_class *cls = arg;
-
-	free_checker_class(cls);
-	rcu_unregister_thread();
-}
-
-static void *checker_thread_entry(void *arg)
-{
-	struct checker_context *ctx = arg;
-	void *rv;
-
-	rcu_register_thread();
-	pthread_cleanup_push(checker_cleanup_thread, ctx->cls);
-	rv = ctx->cls->thread(ctx);
-	pthread_cleanup_pop(1);
-	return rv;
-}
-
-int start_checker_thread(pthread_t *thread, const pthread_attr_t *attr,
-			 struct checker_context *ctx)
-{
-	int rv;
-
-	assert(ctx && ctx->cls && ctx->cls->thread);
-	/* Take a ref here, lest the class be freed before the thread starts */
-	(void)checker_class_ref(ctx->cls);
-	rv = pthread_create(thread, attr, checker_thread_entry, ctx);
-	if (rv != 0) {
-		condlog(1, "failed to start checker thread for %s: %m",
-			ctx->cls->name);
-		checker_class_unref(ctx->cls);
-	}
-	return rv;
 }
 
 void checker_clear_message (struct checker *c)

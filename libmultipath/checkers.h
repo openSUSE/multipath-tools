@@ -143,7 +143,6 @@ struct checker_class {
 	int (*mp_init)(struct checker *); /* to allocate the mpcontext */
 	void (*free)(struct checker *);	  /* to free the context */
 	void (*reset)(void);		  /* to reset the global variables */
-	void *(*thread)(void *);	  /* async thread entry point */
 	int (*pending)(struct checker *); /* to recheck pending paths */
 	bool (*need_wait)(struct checker *); /* checker needs waiting for */
 	const char **msgtable;
@@ -179,29 +178,10 @@ void checker_set_sync (struct checker *);
 void checker_set_async (struct checker *);
 void checker_set_fd (struct checker *, int);
 void checker_enable (struct checker *);
-void checker_disable (struct checker *);
-/*
- * start_checker_thread(): start async path checker thread
- *
- * This function provides a wrapper around pthread_create().
- * The created thread will call the DSO's "libcheck_thread" function with the
- * checker context as argument.
- *
- * Rationale:
- * Path checkers that do I/O may hang forever. To avoid blocking, some
- * checkers therefore use asynchronous, detached threads for checking
- * the paths. These threads may continue hanging if multipathd is stopped.
- * In this case, we can't unload the checker DSO at exit. In order to
- * avoid race conditions and crashes, the entry point of the thread
- * needs to be in libmultipath, not in the DSO itself.
- *
- * @param arg: pointer to struct checker_context.
- */
+void checker_disable(struct checker *);
 struct checker_context {
 	struct checker_class *cls;
 };
-int start_checker_thread (pthread_t *thread, const pthread_attr_t *attr,
-			  struct checker_context *ctx);
 int checker_get_state(struct checker *c);
 bool checker_need_wait(struct checker *c);
 void checker_check (struct checker *, int);
