@@ -192,6 +192,8 @@ int read_dasd_pt(int fd, __attribute__((unused)) struct slice all,
 		label_ints_t *label = (label_ints_t *) &vlabel;
 
 		blocksize = label[4];
+		if (blocksize < 512 || blocksize > 4096)
+			goto out;
 		if (label[14] != 0) {
 			/* disk is reserved minidisk */
 			offset = label[14];
