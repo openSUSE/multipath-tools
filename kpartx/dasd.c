@@ -53,9 +53,8 @@ typedef unsigned int __attribute__((__may_alias__)) label_ints_t;
 
 /*
  */
-int
-read_dasd_pt(int fd, __attribute__((unused)) struct slice all,
-	     struct slice *sp, __attribute__((unused)) unsigned int ns)
+int read_dasd_pt(int fd, __attribute__((unused)) struct slice all,
+		 struct slice *sp, unsigned int ns)
 {
 	int retval = -1;
 	int blocksize;
@@ -243,6 +242,8 @@ read_dasd_pt(int fd, __attribute__((unused)) struct slice all,
 			sp[counter].start = sectors512(offset, blocksize);
 			sp[counter].size  = sectors512(size, blocksize);
 			counter++;
+			if ((unsigned int)counter >= ns)
+				break;
 			blk++;
 		}
 		retval = counter;
