@@ -250,6 +250,8 @@ read_dasd_pt(int fd, struct slice all, struct slice *sp, int ns)
 			sp[counter].start = sectors512(offset, blocksize);
 			sp[counter].size  = sectors512(size, blocksize);
 			counter++;
+			if ((unsigned int)counter >= ns)
+				break;
 			blk++;
 		}
 		retval = counter;
