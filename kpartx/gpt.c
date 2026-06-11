@@ -64,6 +64,12 @@
 #define BLKGETSIZE64 _IOR(0x12,114,sizeof(uint64_t))	/* return device size in bytes (u64 *arg) */
 #endif
 
+/*
+ * The max size of a partition table that we will read for calculating the CRC.
+ * Note that this is much larger than MAX_SLICES. It's 0x02000000 on most systems.
+ */
+#define MAX_PT_SIZE ((SIZE_MAX <= UINT32_MAX ? SIZE_MAX : UINT32_MAX) / sizeof(gpt_entry))
+
 struct blkdev_ioctl_param {
 	unsigned int block;
 	size_t content_length;
@@ -82,8 +88,7 @@ struct blkdev_ioctl_param {
  * Note, the EFI Specification, v1.02, has a reference to
  * Dr. Dobbs Journal, May 1994 (actually it's in May 1992).
  */
-static inline uint32_t
-efi_crc32(const void *buf, unsigned long len)
+static inline uint32_t efi_crc32(const void *buf, size_t len)
 {
 	return (crc32(~0L, buf, len) ^ ~0L);
 }
@@ -238,10 +243,15 @@ static gpt_entry *
 alloc_read_gpt_entries(int fd, gpt_header * gpt)
 {
 	gpt_entry *pte;
-	size_t count = __le32_to_cpu(gpt->num_partition_entries) *
-		__le32_to_cpu(gpt->sizeof_partition_entry);
+	size_t num_entries = __le32_to_cpu(gpt->num_partition_entries);
+	uint32_t sizeof_pe = __le32_to_cpu(gpt->sizeof_partition_entry);
+	size_t count;
 
-	if (!count) return NULL;
+	if (!sizeof_pe || num_entries > MAX_PT_SIZE)
+		return NULL;
+	count = num_entries * sizeof_pe;
+	if (!count)
+		return NULL;
 
 	if (aligned_malloc((void **)&pte, get_sector_size(fd), &count))
 		return NULL;
@@ -296,6 +306,8 @@ is_gpt_valid(int fd, uint64_t lba,
 {
 	int rc = 0;		/* default to not valid */
 	uint32_t crc, origcrc;
+	size_t num_pe;
+	uint32_t sizeof_pe;
 
 	if (!gpt || !ptes)
 		return 0;
@@ -353,20 +365,25 @@ is_gpt_valid(int fd, uint64_t lba,
 	}
 
 	/* Check the GUID Partition Entry Array CRC */
-	crc = efi_crc32(*ptes,
-			__le32_to_cpu((*gpt)->num_partition_entries) *
-			__le32_to_cpu((*gpt)->sizeof_partition_entry));
-	if (crc != __le32_to_cpu((*gpt)->partition_entry_array_crc32)) {
-		// printf("GUID Partitition Entry Array CRC check failed.\n");
-		free(*gpt);
-		*gpt = NULL;
-		free(*ptes);
-		*ptes = NULL;
-		return 0;
-	}
+	num_pe = __le32_to_cpu((*gpt)->num_partition_entries);
+	sizeof_pe = __le32_to_cpu((*gpt)->sizeof_partition_entry);
+
+	if (num_pe > MAX_PT_SIZE)
+		goto bad_crc;
+	crc = efi_crc32(*ptes, num_pe * sizeof_pe);
+	if (crc != __le32_to_cpu((*gpt)->partition_entry_array_crc32))
+		goto bad_crc;
 
 	/* We're done, all's well */
 	return 1;
+
+bad_crc:
+	// printf("GUID Partition Entry Array CRC check failed.\n");
+	free(*gpt);
+	*gpt = NULL;
+	free(*ptes);
+	*ptes = NULL;
+	return 0;
 }
 /**
  * compare_gpts() - Search disk for valid GPT headers and PTEs
