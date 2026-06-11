@@ -228,7 +228,7 @@ int read_dasd_pt(int fd, __attribute__((unused)) struct slice all,
 		if (lseek(fd_dasd, blk * blocksize, SEEK_SET) == -1)
 			goto out;
 
-		while (read(fd_dasd, data, blocksize) != -1) {
+		while (read(fd_dasd, data, blocksize) > 0) {
 			format1_label_t f1;
 
 			memcpy(&f1, data, sizeof(format1_label_t));
