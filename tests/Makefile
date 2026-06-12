@@ -10,7 +10,7 @@ LIBDEPS += -L. -L $(mpathutildir) -L$(mpathcmddir) -lmultipath -lmpathutil -lmpa
 
 TESTS := uevent parser util dmevents hwtable blacklist unaligned vpd pgpolicy \
 	 alias directio valid devt mpathvalid strbuf sysfs features cli mapinfo runner \
-	 shared_ptr
+	 shared_ptr gpt
 HELPERS := test-lib.o test-log.o
 
 .PRECIOUS: $(TESTS:%=%-test)
@@ -22,6 +22,8 @@ valgrind:	$(TESTS:%=%.vgr)
 # test-specific compiler flags
 # XYZ-test_FLAGS: Additional compiler flags for this test
 
+kpartxdir := $(TOPDIR)/kpartx
+gpt-test_FLAGS   := -I$(kpartxdir)
 mpathvalid-test_FLAGS := -I$(mpathvaliddir)
 features-test_FLAGS := -I$(multipathdir)/nvme
 
@@ -68,6 +70,8 @@ cli-test_OBJDEPS := $(daemondir)/cli.o
 mapinfo-test_LIBDEPS = -lpthread -ldevmapper
 runner-test_LIBDEPS = -lpthread
 shared_ptr-test_LIBDEPS = -lpthread
+gpt-test_OBJDEPS := $(kpartxdir)/gpt.o $(kpartxdir)/crc32.o
+
 
 %.o: %.c
 	@echo building $@ because of $?
