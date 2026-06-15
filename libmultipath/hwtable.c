@@ -57,7 +57,6 @@
 		.prio_args     = "",
 		.pgfailback    = -FAILBACK_MANUAL,
 		.no_path_retry = NO_PATH_RETRY_UNDEF,
-		.minio         = 1000,
 		.flush_on_last_del = FLUSH_UNUSED,
 		.user_friendly_names = USER_FRIENDLY_NAMES_OFF,
 		.fast_io_fail  = 5,

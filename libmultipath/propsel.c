@@ -866,13 +866,11 @@ out:
 int select_minio(struct config *conf, struct multipath *mp)
 {
 	const char *origin;
-	unsigned int minv_dmrq[3] = {1, 1, 0}, version[3];
 
-	if (!libmp_get_version(DM_MPATH_TARGET_VERSION, version)
-	    && VERSION_GE(version, minv_dmrq))
-		mp_set_default(minio, DEFAULT_MINIO_RQ);
-	else
+	if (mp->queue_mode == QUEUE_MODE_BIO)
 		return select_minio_bio(conf, mp);
+
+	mp_set_default(minio, DEFAULT_MINIO_RQ);
 	condlog(3, "%s: minio = %i %s", mp->alias, mp->minio, origin);
 	return 0;
 }

@@ -337,7 +337,6 @@ int disassemble_status(const char *params, struct multipath *mpp)
 	int num_pg;
 	int num_pg_args;
 	int num_paths;
-	int def_minio = 0;
 	struct path * pp;
 	struct pathgroup * pgp;
 
@@ -507,16 +506,7 @@ int disassemble_status(const char *params, struct multipath *mpp)
 			 * selector args
 			 */
 			for (k = 0; k < num_pg_args; k++) {
-				if (!strncmp(mpp->selector,
-					     "least-pending", 13)) {
-					p += get_word(p, &word);
-					if (sscanf(word,"%d:*d",
-						   &def_minio) == 1 &&
-					    def_minio != mpp->minio)
-							mpp->minio = def_minio;
-					free(word);
-				} else
-					p += get_word(p, NULL);
+				p += get_word(p, NULL);
 			}
 		}
 	}
