@@ -755,15 +755,6 @@ declare_hw_snprint(minio, print_nonzero)
 declare_mp_range_handler(minio, 0, INT_MAX)
 declare_mp_snprint(minio, print_nonzero)
 
-declare_def_range_handler(minio_rq, 0, INT_MAX)
-declare_def_snprint_defint(minio_rq, print_int, DEFAULT_MINIO_RQ)
-declare_ovr_range_handler(minio_rq, 0, INT_MAX)
-declare_ovr_snprint(minio_rq, print_nonzero)
-declare_hw_range_handler(minio_rq, 0, INT_MAX)
-declare_hw_snprint(minio_rq, print_nonzero)
-declare_mp_range_handler(minio_rq, 0, INT_MAX)
-declare_mp_snprint(minio_rq, print_nonzero)
-
 declare_def_handler(queue_without_daemon, set_yes_no)
 static int
 snprint_def_queue_without_daemon(struct config *conf, struct strbuf *buff,
@@ -2117,6 +2108,7 @@ declare_deprecated_handler(pg_timeout, "(not set)")
 declare_deprecated_handler(bindings_file, DEFAULT_BINDINGS_FILE)
 declare_deprecated_handler(wwids_file, DEFAULT_WWIDS_FILE)
 declare_deprecated_handler(prkeys_file, DEFAULT_PRKEYS_FILE)
+declare_deprecated_handler(minio_rq, "1")
 declare_deprecated_handler(rr_weight, "uniform")
 
 /*
@@ -2144,7 +2136,7 @@ init_keywords(vector keywords)
 	install_keyword("alias_prefix", &def_alias_prefix_handler, &snprint_def_alias_prefix);
 	install_keyword("failback", &def_pgfailback_handler, &snprint_def_pgfailback);
 	install_keyword("rr_min_io", &def_minio_handler, &snprint_def_minio);
-	install_keyword("rr_min_io_rq", &def_minio_rq_handler, &snprint_def_minio_rq);
+	install_keyword("rr_min_io_rq", &deprecated_minio_rq_handler, &snprint_deprecated);
 	install_keyword("max_fds", &max_fds_handler, &snprint_max_fds);
 	install_keyword("rr_weight", &deprecated_rr_weight_handler, &snprint_deprecated);
 	install_keyword("no_path_retry", &def_no_path_retry_handler, &snprint_def_no_path_retry);
@@ -2254,7 +2246,7 @@ init_keywords(vector keywords)
 	install_keyword("rr_weight", &deprecated_rr_weight_handler, &snprint_deprecated);
 	install_keyword("no_path_retry", &hw_no_path_retry_handler, &snprint_hw_no_path_retry);
 	install_keyword("rr_min_io", &hw_minio_handler, &snprint_hw_minio);
-	install_keyword("rr_min_io_rq", &hw_minio_rq_handler, &snprint_hw_minio_rq);
+	install_keyword("rr_min_io_rq", &deprecated_minio_rq_handler, &snprint_deprecated);
 	install_keyword("pg_timeout", &deprecated_pg_timeout_handler, &snprint_deprecated);
 	install_keyword("flush_on_last_del", &hw_flush_on_last_del_handler, &snprint_hw_flush_on_last_del);
 	install_keyword("fast_io_fail_tmo", &hw_fast_io_fail_handler, &snprint_hw_fast_io_fail);
@@ -2300,7 +2292,7 @@ init_keywords(vector keywords)
 	install_keyword("rr_weight", &deprecated_rr_weight_handler, &snprint_deprecated);
 	install_keyword("no_path_retry", &ovr_no_path_retry_handler, &snprint_ovr_no_path_retry);
 	install_keyword("rr_min_io", &ovr_minio_handler, &snprint_ovr_minio);
-	install_keyword("rr_min_io_rq", &ovr_minio_rq_handler, &snprint_ovr_minio_rq);
+	install_keyword("rr_min_io_rq", &deprecated_minio_rq_handler, &snprint_deprecated);
 	install_keyword("flush_on_last_del", &ovr_flush_on_last_del_handler, &snprint_ovr_flush_on_last_del);
 	install_keyword("fast_io_fail_tmo", &ovr_fast_io_fail_handler, &snprint_ovr_fast_io_fail);
 	install_keyword("dev_loss_tmo", &ovr_dev_loss_handler, &snprint_ovr_dev_loss);
@@ -2349,7 +2341,7 @@ init_keywords(vector keywords)
 	install_keyword("rr_weight", &deprecated_rr_weight_handler, &snprint_deprecated);
 	install_keyword("no_path_retry", &mp_no_path_retry_handler, &snprint_mp_no_path_retry);
 	install_keyword("rr_min_io", &mp_minio_handler, &snprint_mp_minio);
-	install_keyword("rr_min_io_rq", &mp_minio_rq_handler, &snprint_mp_minio_rq);
+	install_keyword("rr_min_io_rq", &deprecated_minio_rq_handler, &snprint_deprecated);
 	install_keyword("pg_timeout", &deprecated_pg_timeout_handler, &snprint_deprecated);
 	install_keyword("flush_on_last_del", &mp_flush_on_last_del_handler, &snprint_mp_flush_on_last_del);
 	install_keyword("features", &mp_features_handler, &snprint_mp_features);

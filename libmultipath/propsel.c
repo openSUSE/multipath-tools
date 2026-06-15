@@ -849,21 +849,6 @@ out:
 }
 
 int
-select_minio_rq (struct config *conf, struct multipath * mp)
-{
-	const char *origin;
-
-	do_set(minio_rq, mp->mpe, mp->minio, multipaths_origin);
-	do_set(minio_rq, conf->overrides, mp->minio, overrides_origin);
-	do_set_from_hwe(minio_rq, mp, mp->minio, hwe_origin);
-	do_set(minio_rq, conf, mp->minio, conf_origin);
-	do_default(mp->minio, DEFAULT_MINIO_RQ);
-out:
-	condlog(3, "%s: minio = %i %s", mp->alias, mp->minio, origin);
-	return 0;
-}
-
-int
 select_minio_bio (struct config *conf, struct multipath * mp)
 {
 	const char *origin;
@@ -880,13 +865,16 @@ out:
 
 int select_minio(struct config *conf, struct multipath *mp)
 {
+	const char *origin;
 	unsigned int minv_dmrq[3] = {1, 1, 0}, version[3];
 
 	if (!libmp_get_version(DM_MPATH_TARGET_VERSION, version)
 	    && VERSION_GE(version, minv_dmrq))
-		return select_minio_rq(conf, mp);
+		mp_set_default(minio, DEFAULT_MINIO_RQ);
 	else
 		return select_minio_bio(conf, mp);
+	condlog(3, "%s: minio = %i %s", mp->alias, mp->minio, origin);
+	return 0;
 }
 
 int select_fast_io_fail(struct config *conf, struct path *pp)
