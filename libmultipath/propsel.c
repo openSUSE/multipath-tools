@@ -211,28 +211,6 @@ out:
 	return 0;
 }
 
-/*
- * selectors :
- * traverse the configuration layers from most specific to most generic
- * stop at first explicit setting found
- */
-int select_rr_weight(struct config *conf, struct multipath * mp)
-{
-	const char *origin;
-	STRBUF_ON_STACK(buff);
-
-	mp_set_mpe(rr_weight);
-	mp_set_ovr(rr_weight);
-	mp_set_hwe(rr_weight);
-	mp_set_conf(rr_weight);
-	mp_set_default(rr_weight, DEFAULT_RR_WEIGHT);
-out:
-	print_rr_weight(&buff, mp->rr_weight);
-	condlog(3, "%s: rr_weight = %s %s", mp->alias,
-		get_strbuf_str(&buff), origin);
-	return 0;
-}
-
 int select_pgfailback(struct config *conf, struct multipath * mp)
 {
 	const char *origin;

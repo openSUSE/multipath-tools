@@ -447,7 +447,6 @@ merge_hwe (struct hwentry * dst, struct hwentry * src)
 	merge_str(bl_product);
 	merge_num(pgpolicy);
 	merge_num(pgfailback);
-	merge_num(rr_weight);
 	merge_num(no_path_retry);
 	merge_num(minio);
 	merge_num(minio_rq);
@@ -505,7 +504,6 @@ merge_mpe(struct mpentry *dst, struct mpentry *src)
 
 	merge_num(pgpolicy);
 	merge_num(pgfailback);
-	merge_num(rr_weight);
 	merge_num(no_path_retry);
 	merge_num(minio);
 	merge_num(minio_rq);
@@ -616,7 +614,6 @@ store_hwe (vector hwtable, struct hwentry * dhwe)
 
 	hwe->pgpolicy = dhwe->pgpolicy;
 	hwe->pgfailback = dhwe->pgfailback;
-	hwe->rr_weight = dhwe->rr_weight;
 	hwe->no_path_retry = dhwe->no_path_retry;
 	hwe->minio = dhwe->minio;
 	hwe->minio_rq = dhwe->minio_rq;

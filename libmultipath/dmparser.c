@@ -89,16 +89,11 @@ int assemble_map(struct multipath *mp, char **params)
 			goto err;
 
 		vector_foreach_slot (pgp->paths, pp, j) {
-			int tmp_minio = minio;
-
-			if (mp->rr_weight == RR_WEIGHT_PRIO
-			    && pp->priority > 0)
-				tmp_minio = minio * pp->priority;
 			if (!strlen(pp->dev_t) ) {
 				condlog(0, "dev_t not set for '%s'", pp->dev);
 				goto err;
 			}
-			if (print_strbuf(&buff, " %s %d", pp->dev_t, tmp_minio) < 0)
+			if (print_strbuf(&buff, " %s %d", pp->dev_t, minio) < 0)
 				goto err;
 		}
 	}
@@ -314,15 +309,6 @@ int disassemble_map(const struct vector_s *pathvec,
 					p += get_word(p, &word);
 					def_minio = atoi(word);
 					free(word);
-
-					if (!strncmp(mpp->selector,
-						     "round-robin", 11)) {
-
-						if (mpp->rr_weight == RR_WEIGHT_PRIO
-						    && pp->priority > 0)
-							def_minio /= pp->priority;
-
-					}
 
 					if (def_minio != mpp->minio)
 						mpp->minio = def_minio;

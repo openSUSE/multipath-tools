@@ -336,7 +336,6 @@ int setup_map(struct multipath *mpp, char **params, struct vectors *vecs)
 	else
 		free(save_attr);
 
-	select_rr_weight(conf, mpp);
 	select_minio(conf, mpp);
 	select_mode(conf, mpp);
 	select_uid(conf, mpp);

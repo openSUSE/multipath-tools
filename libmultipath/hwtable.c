@@ -56,7 +56,6 @@
 		.prio_name     = PRIO_CONST,
 		.prio_args     = "",
 		.pgfailback    = -FAILBACK_MANUAL,
-		.rr_weight     = RR_WEIGHT_NONE,
 		.no_path_retry = NO_PATH_RETRY_UNDEF,
 		.minio         = 1000,
 		.minio_rq      = 1,

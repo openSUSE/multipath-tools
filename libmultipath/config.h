@@ -64,7 +64,6 @@ struct hwentry {
 
 	int pgpolicy;
 	int pgfailback;
-	int rr_weight;
 	int no_path_retry;
 	int minio;
 	int minio_rq;
@@ -114,7 +113,6 @@ struct mpentry {
 	uint8_t sa_flags;
 	int pgpolicy;
 	int pgfailback;
-	int rr_weight;
 	int no_path_retry;
 	int minio;
 	int minio_rq;
@@ -151,7 +149,6 @@ struct config {
 	unsigned int max_checkint;
 	unsigned int adjust_int;
 	int pgfailback;
-	int rr_weight;
 	int no_path_retry;
 	int user_friendly_names;
 	int bindings_read_only;
