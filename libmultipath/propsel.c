@@ -582,6 +582,11 @@ int select_hwhandler(struct config *conf, struct multipath *mp)
 
 	dh_state = &handler[2];
 
+	if (mp->queue_mode == QUEUE_MODE_BIO) {
+		mp->hwhandler = DEFAULT_HWHANDLER;
+		origin = "(setting: disabled due to \"queue_mode bio\")";
+		goto set;
+	}
 	/*
 	 * TPGS_UNDEF means that ALUA support couldn't determined either way
 	 * yet, probably because the path was always down.
@@ -622,6 +627,7 @@ out:
 		mp->hwhandler = DEFAULT_HWHANDLER;
 		origin = tpgs_origin;
 	}
+set:
 	mp->hwhandler = strdup(mp->hwhandler);
 	condlog(3, "%s: hardware_handler = \"%s\" %s", mp->alias, mp->hwhandler,
 		origin);
