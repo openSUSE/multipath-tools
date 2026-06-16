@@ -6,7 +6,7 @@
 .\" Update the date below if you make any significant change.
 .\" ----------------------------------------------------------------------------
 .
-.TH MULTIPATH.CONF 5 2025-09-12 Linux
+.TH MULTIPATH.CONF 5 2026-05-27 Linux
 .
 .
 .\" ----------------------------------------------------------------------------
@@ -198,9 +198,8 @@ kernel multipath target:
 .TP 12
 .I "round-robin 0"
 Choose the path for the next bunch of I/O by looping through every path in the
-path group, sending \fBthe same number of I/O requests\fR to each path. Some
-aspects of behavior can be controlled with the attributes: \fIrr_min_io\fR,
-\fIrr_min_io_rq\fR and \fIrr_weight\fR.
+path group, sending \fBthe same number of I/O requests\fR to each path.
+
 .TP
 .I "queue-length 0"
 (Since 2.6.31 kernel) Choose the path for the next bunch of I/O based on \fBthe lowest
@@ -598,24 +597,12 @@ The default is: \fBmanual\fR
 .
 .TP
 .B rr_min_io
-Number of I/O requests to route to a path before switching to the next in the
-same path group. This is only for \fIBlock I/O\fR(BIO) based multipath and
-only apply to \fIround-robin\fR path_selector.
-.RS
-.TP
-The default is: \fB1000\fR
-.RE
+(Deprecated since kernel 4.6) This option is not supported anymore, and will be ignored.
 .
 .
 .TP
 .B rr_min_io_rq
-Number of I/O requests to route to a path before switching to the next in the
-same path group. This is only for \fIRequest\fR based multipath and
-only apply to \fIround-robin\fR path_selector.
-.RS
-.TP
-The default is: \fB1\fR
-.RE
+(Deprecated since kernel 4.6) This option is not supported anymore, and will be ignored.
 .
 .
 .TP
@@ -634,16 +621,7 @@ The default is: \fBmax\fR
 .
 .TP
 .B rr_weight
-If set to \fIpriorities\fR the multipath configurator will assign path weights
-as "path prio * rr_min_io". Possible values are
-.I priorities
-or
-.I uniform .
-Only apply to \fIround-robin\fR path_selector.
-.RS
-.TP
-The default is: \fBuniform\fR
-.RE
+(Deprecated since kernel 4.6) This option is not supported anymore, and will be ignored.
 .
 .
 .TP
@@ -821,28 +799,16 @@ The default is: \fB<unset>\fR
 .TP
 .B bindings_file
 (Deprecated) This option is not supported anymore, and will be ignored.
-.RS
-.TP
-The compiled-in value is: \fB@STATE_DIR@/bindings\fR
-.RE
 .
 .
 .TP
 .B wwids_file
 (Deprecated) This option is not supported anymore, and will be ignored.
-.RS
-.TP
-The compiled-in value is: \fB@STATE_DIR@/wwids\fR
-.RE
 .
 .
 .TP
 .B prkeys_file
 (Deprecated) This option is not supported anymore, and will be ignored.
-.RS
-.TP
-The compiled-in value is: \fB@STATE_DIR@/prkeys\fR
-.RE
 .
 .
 .TP
@@ -1008,10 +974,6 @@ The default is: \fB<unset>\fR
 .TP
 .B config_dir
 (Deprecated) This option is not supported anymore, and will be ignored.
-.RS
-.TP
-The compiled-in value is: \fB@CONFIGDIR@\fR
-.RE
 .
 .
 .TP
@@ -1324,7 +1286,6 @@ The default is: \fBno\fR
 .TP
 .B disable_changed_wwids
 (Deprecated) This option is not supported anymore, and will be ignored.
-.RE
 .
 .
 .TP
@@ -1580,13 +1541,7 @@ section:
 .TP
 .B failback
 .TP
-.B rr_weight
-.TP
 .B no_path_retry
-.TP
-.B rr_min_io
-.TP
-.B rr_min_io_rq
 .TP
 .B flush_on_last_del
 .TP
@@ -1769,13 +1724,7 @@ section:
 .TP
 .B failback
 .TP
-.B rr_weight
-.TP
 .B no_path_retry
-.TP
-.B rr_min_io
-.TP
-.B rr_min_io_rq
 .TP
 .B fast_io_fail_tmo
 .TP
@@ -1855,13 +1804,7 @@ the values are taken from the \fIdevices\fR or \fIdefaults\fR sections:
 .TP
 .B failback
 .TP
-.B rr_weight
-.TP
 .B no_path_retry
-.TP
-.B rr_min_io
-.TP
-.B rr_min_io_rq
 .TP
 .B flush_on_last_del
 .TP
