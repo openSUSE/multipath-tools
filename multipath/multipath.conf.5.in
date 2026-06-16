@@ -1527,7 +1527,7 @@ the same WWID in the \fIbindings_file\fR.
 The following attributes are optional; if not set the default values
 are taken from the \fIoverrides\fR, \fIdevices\fR, or \fIdefaults\fR
 section:
-.sp 1
+.sp
 .PD .1v
 .RS
 .TP
@@ -1704,7 +1704,7 @@ has no effect.
 The following attributes are optional; if not set the default values
 are taken from the \fIdefaults\fR
 section:
-.sp 1
+.sp
 .PD .1v
 .RS
 .TP
@@ -1782,7 +1782,7 @@ section:
 .
 The overrides section recognizes the following optional attributes; if not set
 the values are taken from the \fIdevices\fR or \fIdefaults\fR sections:
-.sp 1
+.sp
 .PD .1v
 .RS
 .TP
@@ -1878,7 +1878,7 @@ exactly. The protocol that a path is using can be viewed by running
 .LP
 The following attributes are optional; if not set, the default values are taken
 from the \fIoverrides\fR, \fIdevices\fR, or \fIdefaults\fR section:
-.sp 1
+.sp
 .PD .1v
 .RS
 .TP
@@ -1969,7 +1969,7 @@ increase and the threshold is never reached. Ticks are the time between
 path checks by multipathd, which is variable and controlled by the
 \fIpolling_interval\fR and \fImax_polling_interval\fR parameters.
 .
-.RS 8
+.RS
 .LP
 This algorithm is superseded by the \(dqmarginal_path\(dq failure tracking,
 but remains supported for backward compatibility.

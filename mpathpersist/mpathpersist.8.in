@@ -50,7 +50,7 @@ various options.
 .BI \-verbose|\-v " level"
 Verbosity:
 .RS
-.TP 5
+.TP
 .I 0
 Critical messages.
 .TP
