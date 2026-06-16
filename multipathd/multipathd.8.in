@@ -416,7 +416,7 @@ appropriate device information. The following wildcards are supported.
 .TP
 .B Multipath format wildcards
 .RS
-.TP 12
+.TP
 .B %n
 The device name.
 .TP
@@ -521,7 +521,7 @@ the configured one).
 .TP
 .B Path format wildcards
 .RS
-.TP 12
+.TP
 .B %w
 The device WWID (uuid).
 .TP
@@ -548,7 +548,7 @@ sysfs states, it shows "running".
 .B %T
 The multipathd path checker state of the device. The possible states are:
 .RS
-.TP 12
+.TP
 .I ready
 The device is ready to handle IO.
 .TP
@@ -693,8 +693,7 @@ Overrides the \fImax_fds\fR configuration setting.
 .
 .BR multipathc (8),
 .BR multipath (8),
-.BR kpartx (8)
-.RE
+.BR kpartx (8),
 .BR sd_notify (3),
 .BR systemd.service (5).
 .

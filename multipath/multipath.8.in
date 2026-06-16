@@ -100,7 +100,7 @@ The \fBdevice\fR argument restricts \fBmultipath\fR's operation to devices match
 expression. The argument may refer either to a multipath map or to
 its components ("paths"). The expression may be in one of the following formats:
 .
-.TP 1.4i
+.TP
 .B device node
 file name of a device node, e.g. \fI/dev/dm-10\fR or \fI/dev/sda\fR. If the node refers
 to an existing device mapper device representing a multipath map, this selects
@@ -195,8 +195,8 @@ creating \fI@CONFIGFILE@\fR.
 .BI \-v " level"
 Verbosity of information printed to stdout in default and "list" operation
 modes. The default level is \fI-v 2\fR.
-.RS 1.2i
-.TP 1.2i
+.RS
+.TP
 .I 0
 Nothing is printed.
 .TP
