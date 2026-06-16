@@ -27,7 +27,7 @@ or \fBmultipathd show config\fR command.
 .
 .PP
 Additional configuration can be made in drop-in files under
-.B @CONFIGDIR@.
+.BR @CONFIGDIR@/ .
 Files ending in \fI.conf\fR in this directory are read
 in alphabetical order, after reading \fI@CONFIGFILE@\fR.
 They use the same syntax as \fI@CONFIGFILE@\fR itself,
@@ -867,11 +867,11 @@ to the end of the reservation key.
 .RS
 .PP
 Alternatively, this can be set to \fBfile\fR, which will store the RESERVATION
-KEY registered by mpathpersist in the \fIprkeys_file\fR. multipathd will then
-use this key to register additional paths as they appear.  When the
+KEY registered by mpathpersist in the \fI@STATE_DIR@/prkeys\fR file. multipathd
+will then use this key to register additional paths as they appear. When the
 registration is removed, the RESERVATION KEY is removed from the
-\fIprkeys_file\fR. The prkeys file will automatically keep track of whether
-the key was registered with \fI--param-aptpl\fR.
+\fI@STATE_DIR@/prkeys\fR file. The prkeys file will automatically keep track of
+whether the key was registered with \fI--param-aptpl\fR.
 .TP
 The default is: \fB<unset>\fR
 .RE
@@ -1192,9 +1192,9 @@ detects a new device. The following values are possible:
 .I strict
 Both multipath and multipathd treat only such devices as multipath devices
 which have been part of a multipath map previously, and which are therefore
-listed in the \fBwwids_file\fR. Users can manually set up multipath maps using the
-\fBmultipathd add map\fR command. Once set up manually, the map is
-remembered in the wwids file and will be set up automatically in the future.
+listed in the \fI@STATE_DIR@/wwids\fR file. Users can manually set up multipath
+maps using the \fBmultipathd add map\fR command. Once set up manually, the map is
+remembered in the WWIDs file and will be set up automatically in the future.
 .TP
 .I off
 Multipath behaves like \fBstrict\fR. Multipathd behaves like \fBgreedy\fR.
@@ -1554,8 +1554,8 @@ this is \fBnot\fR a regular expression or a substring; WWIDs must match
 exactly inside the multipaths section.
 .TP
 .B alias
-Symbolic name for the multipath map. This takes precedence over a an entry for
-the same WWID in the \fIbindings_file\fR.
+Symbolic name for the multipath map. This takes precedence over an entry for
+the same WWID in the \fI@STATE_DIR@/bindings\fR file.
 .LP
 .
 .
@@ -1645,9 +1645,9 @@ for more than 100 known multipath-capable storage devices. The devices section
 can be used to override these settings. If there are multiple matches for a
 given device, the attributes of all matching entries are applied to it.
 If an attribute is specified in several matching device subsections,
-later entries take precedence. Thus, entries in files under \fIconfig_dir\fR (in
-reverse alphabetical order) have the highest precedence, followed by entries
-in \fI@CONFIGFILE@\fR; the built-in hardware table has the lowest
+later entries take precedence. Thus, entries in files under the \fI@CONFIGDIR@/\fR
+directory (in reverse alphabetical order) have the highest precedence, followed
+by entries in \fI@CONFIGFILE@\fR; the built-in hardware table has the lowest
 precedence. Inside a configuration file, later entries have higher precedence
 than earlier ones.
 .LP
@@ -2084,6 +2084,35 @@ deadlock if the \fIdev_loss_tmo\fR setting results in a device being removed
 while I/O is still queued. The multipath daemon will update the \fIdev_loss_tmo\fR
 setting accordingly to avoid this deadlock. Hence if both values are
 specified the order of precedence is \fIno_path_retry, queue_if_no_path, dev_loss_tmo\fR.
+.
+.
+.\" ----------------------------------------------------------------------------
+.SH "FILES"
+.\" ----------------------------------------------------------------------------
+.
+Default paths for configuration files and directories:
+.TP
+.I @CONFIGFILE@
+Main configuration file.
+.TP
+.I @CONFIGDIR@/
+Directory for configuration drop-in files.
+.TP
+.I @STATE_DIR@/bindings
+Bindings file, used when the \fBuser_friendly_names\fR option is set to
+\fByes\fR to assign a persistent and unique alias to each multipath device.
+.TP
+.I @STATE_DIR@/prkeys
+Persistent reservation keys file, used by multipathd to keep track of the
+reservation key used for a specific WWID when \fBreservation_key\fR is set
+to \fBfile\fR.
+.TP
+.I @STATE_DIR@/wwids
+WWIDs file, used by multipath to keep track of the WWIDs of LUNs for which
+multipath devices have been created in the past.
+.TP
+.I @RUNTIME_DIR@/multipathd.pid
+PID file.
 .
 .
 .\" ----------------------------------------------------------------------------
