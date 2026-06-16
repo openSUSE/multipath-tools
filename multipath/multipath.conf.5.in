@@ -704,11 +704,13 @@ The default is: \fBunused\fR
 .B user_friendly_names
 If set to
 .I yes
-, using the bindings file \fI@STATE_DIR@/bindings\fR to assign a persistent
-and unique alias to the multipath, in the form of mpath<n>. If set to
+, the bindings file \fI@STATE_DIR@/bindings\fR is used to assign a persistent
+and unique alias to the multipath, in the form of \fIprefix\fR<n> (where
+\fIprefix\fR is defined by \fIalias_prefix\fR; by default \fImpath\fR).
+If set to
 .I no
-use the WWID as the alias. In either case this be will
-be overridden by any specific aliases in the \fImultipaths\fR section.
+, the WWID is used as the alias. In either case, this will be overridden
+by any specific aliases defined in the \fImultipaths\fR section.
 .RS
 .TP
 The default is: \fBno\fR
