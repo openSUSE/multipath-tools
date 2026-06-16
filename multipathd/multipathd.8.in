@@ -570,7 +570,6 @@ The device appears usable, but it being delayed for marginal path checking.
 .I undef
 The device either is not part of a multipath device, or its path checker has
 not yet run.
-.PP
 .RE
 .TP
 .B %s

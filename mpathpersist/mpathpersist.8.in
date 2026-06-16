@@ -169,7 +169,6 @@ PR In: maximum allocation length. LEN is a decimal number between 0 and 8192.
 .SH EXAMPLE
 .\" ----------------------------------------------------------------------------
 .
-.PP
 Register the key \(dq123abc\(dq for the /dev/mapper/mpath9 device:
 .RS
 \fBmpathpersist --out --register --param-sark=\fI123abc /dev/mapper/mpath9\fR
@@ -212,7 +211,6 @@ Remove current reservation, and unregister all registered keys from all I_T nexu
 .SH BATCH FILES
 .\" ----------------------------------------------------------------------------
 .
-.PP
 The option \fI--batch-file\fR (\fI-f\fR) sets an input file to be processed
 by \fBmpathpersist\fR. Grouping commands in batch files can provide a speed
 improvement in particular on large installments, because \fBmpathpersist\fR

@@ -88,7 +88,6 @@ the indentation shown in the above example is helpful for human readers but
 not mandatory.
 .LP
 .
-.LP
 .B Note on regular expressions:
 The \fI@CONFIGFILE@\fR syntax allows many attribute values to be specified as POSIX
 Extended Regular Expressions (see \fBregex\fR(7)). These regular expressions
@@ -127,8 +126,6 @@ vendor, product, and revision.
 .B overrides
 This section defines values for attributes that should override the
 device-specific settings for all devices.
-.RE
-.LP
 .
 .
 .\" ----------------------------------------------------------------------------
@@ -1576,7 +1573,6 @@ section:
 .B ghost_delay
 .RE
 .PD
-.LP
 .
 .
 .\" ----------------------------------------------------------------------------
@@ -1769,7 +1765,6 @@ section:
 .B all_tg_pt
 .RE
 .PD
-.LP
 .
 .
 .\" ----------------------------------------------------------------------------
@@ -1978,7 +1973,6 @@ as integrity failures or congestion with so-called Fabric Performance
 Impact Notifications (FPINs).On receiving the fpin notifications through ELS
 multipathd will move the affected path and port states to marginal.
 .
-.RE
 .LP
 See the documentation
 of the individual options above for details.
