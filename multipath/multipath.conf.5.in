@@ -2,7 +2,7 @@
 .\" Update the date below if you make any significant change.
 .\" ----------------------------------------------------------------------------
 .
-.TH MULTIPATH.CONF 5 2026-05-27 Linux
+.TH MULTIPATH.CONF 5 2026-06-13 Linux
 .
 .
 .\" ----------------------------------------------------------------------------
@@ -193,20 +193,18 @@ kernel multipath target:
 .RS
 .TP
 .I "round-robin 0"
-Choose the path for the next bunch of I/O by looping through every path in the
-path group, sending \fBthe same number of I/O requests\fR to each path.
-
+Choose the path for the next I/O request by \fBcycling through the path group\fR.
 .TP
 .I "queue-length 0"
-(Since 2.6.31 kernel) Choose the path for the next bunch of I/O based on \fBthe lowest
+(Since 2.6.31 kernel) Choose the path for the next I/O request based on \fBthe lowest
 number of outstanding in-flight I/O requests\fR to the path.
 .TP
 .I "service-time 0"
-(Since 2.6.31 kernel) Choose the path for the next bunch of I/O based on \fBthe
+(Since 2.6.31 kernel) Choose the path for the next I/O request based on \fBthe
 lowest total size (in bytes) of outstanding in-flight I/O requests\fR to the path.
 .TP
 .I "historical-service-time 0"
-(Since 5.8 kernel) Choose the path for the next bunch of I/O with \fBa dynamic
+(Since 5.8 kernel) Choose the path for the next I/O request with \fBa dynamic
 algorithm based on the historical service time and the number of outstanding
 in-flight I/O requests\fR to the path.
 .TP
