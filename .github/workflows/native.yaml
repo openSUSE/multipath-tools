@@ -55,17 +55,16 @@ jobs:
 
       - name: build and test
         id: test
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: -j$(nproc) -Orecurse V=1 READLINE=$READLINE test
+        run: |
+          docker run -w ${{ github.workspace }} -v${{ github.workspace }}:${{ github.workspace }} \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
+            -j$(nproc) -Orecurse V=1 READLINE=$READLINE test
         continue-on-error: true
 
       - name: create test-progs.tar
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: test-progs.tar
+        run: |
+          docker run -w ${{ github.workspace }} -v${{ github.workspace }}:${{ github.workspace }} \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} test-progs.tar
 
       - name: upload test-progs.tar
         uses: actions/upload-artifact@v4
@@ -124,11 +123,11 @@ jobs:
 
       - name: build and test with clang
         id: test
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          params: --pids-limit 4096 -e CC=clang
-          command: -j$(nproc) -Orecurse V=1 READLINE=$READLINE test
+        run: |
+          docker run --pids-limit 4096 -e CC=clang \
+            -w ${{ github.workspace }} -v${{ github.workspace }}:${{ github.workspace }} \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
+            -j$(nproc) -Orecurse V=1 READLINE=$READLINE test
         continue-on-error: true
 
       - name: create test-outputs.tar
@@ -185,16 +184,15 @@ jobs:
         run: tar xfmv test-progs.tar
 
       - name: run root tests
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          guest-dir: /__w/multipath-tools/multipath-tools
-          host-dir: ${{ github.workspace }}
-          params: >
-            --workdir /__w/multipath-tools/multipath-tools --privileged
-            -v /dev/ram0:/dev/ram0 -e DIO_TEST_DEV=/dev/ram0
-          command: -C tests V=1 directio.out dmevents.out
         id: test
+        run: |
+          docker run \
+            --workdir /__w/multipath-tools/multipath-tools --privileged \
+            -v /dev/ram0:/dev/ram0 -e DIO_TEST_DEV=/dev/ram0 \
+            -w /__w/multipath-tools/multipath-tools \
+            -v${{ github.workspace }}:/__w/multipath-tools/multipath-tools \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
+            -C tests V=1 directio.out dmevents.out
         continue-on-error: true
 
       - name: create test-outputs.tar

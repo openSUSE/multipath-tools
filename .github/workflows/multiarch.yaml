@@ -61,24 +61,16 @@ jobs:
           echo "ARCH_NAME=${__arch//\//-}" >>"$GITHUB_ENV"
       - name: compile and run unit tests
         id: test
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          guest-dir: /build
-          host-dir: ${{ github.workspace }}
-          command: test
-          params: "--pids-limit 4096 --platform linux/${{ matrix.arch }}"
-          pull-params: "--platform linux/${{ matrix.arch }}"
+        run: |
+          docker run --pids-limit 4096 --platform linux/${{ matrix.arch }} \
+            -w /build -v${{ github.workspace }}:/build \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} test
         continue-on-error: true
       - name: create archives
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          guest-dir: /build
-          host-dir: ${{ github.workspace }}
-          command: test-progs.tar test-outputs.tar
-          params: "--platform linux/${{ matrix.arch }}"
-          pull-params: "--platform linux/${{ matrix.arch }}"
+        run: |
+          docker run --platform linux/${{ matrix.arch }} \
+            -w /build -v${{ github.workspace }}:/build \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} test-progs.tar test-outputs.tar
         if: steps.test.outcome != 'success'
       - name: upload binary archive
         uses: actions/upload-artifact@v4
