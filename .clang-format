@@ -30,4 +30,5 @@ ForEachMacros:
   - vector_foreach_slot
   - vector_foreach_slot_backwards
   - vector_foreach_slot_after
+Cpp11BracedListStyle: false
 ---
