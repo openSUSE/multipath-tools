@@ -4,6 +4,7 @@
 #include <linux/types.h>
 /* The following include is required for LIBAIO_REDIRECT */
 #include <libaio.h>
+#include <sys/stat.h>
 #include "util.h"
 
 /*
@@ -87,4 +88,29 @@
  * (see https://gcc.gnu.org/onlinedocs/cpp/Stringizing.html).
  */
 #define wrap_will_return(x, y) will_return(x, y)
+
+/*
+ * On some glibc versions on older Debian distros (up to bullseye), fstat()
+ * is a wrapper around __fxstat(), which takes an additional argument.
+ * Also, MUSL libc redirects fstat to __fstat_time64 on some architectures.
+ */
+#if defined(__GLIBC__) && defined(_STAT_VER)
+#define WRAP_FSTAT_NAME WRAP_NAME(__fxstat)
+#define WRAP_FSTAT_FUNC(v, fd, buf) WRAP_FSTAT(v, fd, buf)
+#define REAL_FSTAT_FUNC(v, fd, buf) REAL_FSTAT(v, fd, buf)
+#else
+#if !defined(__GLIBC__) && defined(_REDIR_TIME64) && _REDIR_TIME64
+#define WRAP_FSTAT_NAME WRAP_NAME(__fstat_time64)
+#elif defined(__GLIBC__) && __GLIBC_PREREQ(2, 34) && __BITS_PER_LONG == 32 && \
+	defined(_TIME_BITS) && _TIME_BITS == 64
+#define WRAP_FSTAT_NAME WRAP_NAME(__fstat64_time)
+#else
+#define WRAP_FSTAT_NAME WRAP_NAME(fstat)
+#endif
+#define WRAP_FSTAT_FUNC(v, fd, buf) WRAP_FSTAT(fd, buf)
+#define REAL_FSTAT_FUNC(v, fd, buf) REAL_FSTAT(fd, buf)
+#endif
+#define WRAP_FSTAT CONCAT2(__wrap_, WRAP_FSTAT_NAME)
+#define REAL_FSTAT CONCAT2(__real_, WRAP_FSTAT_NAME)
+
 #endif
