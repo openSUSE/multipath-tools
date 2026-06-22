@@ -240,9 +240,9 @@ int __wrap_dm_geteventnr(const char *name)
 	return -1;
 }
 
-int WRAP_IOCTL(int fd, unsigned long request, void *argp)
+int WRAP_IOCTL(int fd, ioctl_request_t request, void *argp)
 {
-	condlog(1, "%s %ld", __func__, request);
+	condlog(1, "%s " IOCTL_FMT_, __func__, request);
 	assert_int_equal(fd, waiter->fd);
 	assert_uint_equal(request, DM_DEV_ARM_POLL);
 	return mock_type(int);

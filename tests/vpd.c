@@ -59,7 +59,7 @@ static const char vendor_id[] = "Linux";
 static const char test_id[] =
 	"A123456789AbcDefB123456789AbcDefC123456789AbcDefD123456789AbcDef";
 
-int WRAP_IOCTL(int fd, unsigned long request, void *param)
+int WRAP_IOCTL(int fd, ioctl_request_t request, void *param)
 {
 	int len;
 	struct sg_io_hdr *io_hdr;

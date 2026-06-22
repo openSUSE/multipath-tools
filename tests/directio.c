@@ -25,12 +25,6 @@ const struct timespec one_sec = { .tv_sec = 1 };
 const char *test_dev = NULL;
 unsigned int test_delay = 10000;
 
-#ifdef __GLIBC__
-#define ioctl_request_t unsigned long
-#else
-#define ioctl_request_t int
-#endif
-
 int REAL_IOCTL(int fd, ioctl_request_t request, void *argp);
 
 int WRAP_IOCTL(int fd, ioctl_request_t request, void *argp)

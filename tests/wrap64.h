@@ -73,6 +73,14 @@
 #define WRAP_IOCTL CONCAT2(__wrap_, WRAP_IOCTL_NAME)
 #define REAL_IOCTL CONCAT2(__real_, WRAP_IOCTL_NAME)
 
+#ifdef __GLIBC__
+#define ioctl_request_t unsigned long
+#define IOCTL_FMT_ "%lu"
+#else
+#define ioctl_request_t int
+#define IOCTL_FMT_ "%d"
+#endif
+
 #if defined(__GLIBC__) && defined(LIBAIO_REDIRECT) && __BITS_PER_LONG == 32 \
 	&& defined(_TIME_BITS) && _TIME_BITS == 64
 #define WRAP_IO_GETEVENTS_NAME io_getevents_time64

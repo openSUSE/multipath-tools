@@ -59,7 +59,7 @@ int aligned_malloc(void **mem_p, size_t align, size_t *size_p)
 /* Block-device simulation                                             */
 /* ------------------------------------------------------------------ */
 
-static uint64_t test_disk_size_bytes;
+static ioctl_request_t test_disk_size_bytes;
 
 int REAL_FSTAT_FUNC(int v, int fd, struct stat *buf);
 int WRAP_FSTAT_FUNC(int v, int fd, struct stat *buf)
@@ -71,11 +71,11 @@ int WRAP_FSTAT_FUNC(int v, int fd, struct stat *buf)
 	return rc;
 }
 
-int REAL_IOCTL(int fd, unsigned long req, void *p);
-int WRAP_IOCTL(int fd, unsigned long req, void *p)
+int REAL_IOCTL(int fd, ioctl_request_t req, void *p);
+int WRAP_IOCTL(int fd, ioctl_request_t req, void *p)
 {
 	if (test_disk_size_bytes) {
-		if (req == BLKGETSIZE64) {
+		if (req == (ioctl_request_t)BLKGETSIZE64) {
 			*(uint64_t *)p = test_disk_size_bytes;
 			return 0;
 		}
