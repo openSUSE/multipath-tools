@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (c) 2026 SUSE LLC
 #include <assert.h>
+#include <sched.h>
 #include <time.h>
 #include <pthread.h>
 #include <urcu/uatomic.h>
@@ -47,9 +48,24 @@ static void cleanup_context(struct runner_context **prctx)
 		return;
 
 	st = uatomic_cmpxchg(&rctx->status, RUNNER_RUNNING, RUNNER_DONE);
+	/*
+	 * If it finds the thread in RUNNER_RUNNING state, cancel_runner() sets
+	 * the state to RUNNER_CANCELLED before actually cancelling it.
+	 * If the thread terminates between these two points in time,
+	 * pthread_cancel() may access a pthread_t for an already cleaned-up
+	 * thread. Therefore wait here until the thread has actually been
+	 * cancelled, after which cancel_runner() will set the state to
+	 * RUNNER_DEAD. Whether the thread will actually see this value is
+	 * implementation-dependent.
+	 */
+	if (st == RUNNER_CANCELLED) {
+		do
+			sched_yield();
+		while (uatomic_read(&rctx->status) == RUNNER_CANCELLED);
+	}
 	if (st != RUNNER_RUNNING) {
 		uatomic_cmpxchg(&rctx->status, st, RUNNER_DEAD);
-		condlog(st == RUNNER_CANCELLED ? 3 : 2,
+		condlog(st == RUNNER_DEAD || st == RUNNER_CANCELLED ? 3 : 2,
 			"%s: runner %p finished in state '%s'", __func__, rctx,
 			runner_state_name(st));
 	}
@@ -116,6 +132,8 @@ repeat:
 		break;
 	case RUNNER_RUNNING:
 		pthread_cancel(rctx->thr);
+		assert(uatomic_cmpxchg(&rctx->status, RUNNER_CANCELLED,
+				       RUNNER_DEAD) == RUNNER_CANCELLED);
 		st_new = RUNNER_CANCELLED;
 		/* fallthrough */
 	case RUNNER_CANCELLED:
