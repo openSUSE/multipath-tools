@@ -231,11 +231,13 @@ void int_handler(int signal)
 static void terminate_all(void)
 {
 	int i, count;
+	struct runner_context *rctx;
 
 	for (count = 0, i = 0; i < N_RUNNERS; i++)
 		if (context[i]) {
-			release_runner(context[i]);
+			rctx = context[i];
 			context[i] = NULL;
+			release_runner(rctx);
 			count++;
 		}
 	condlog(3, "%s: %d runners released", __func__, count);
@@ -269,6 +271,7 @@ static int run_test(int n)
 	long max_wait = TIMEOUT_USEC + NOISE_BIAS * NOISE_USEC + 100000 +
 			RUNNER_START_DELAY_US;
 	bool killed = false;
+	struct runner_context *rctx;
 
 	for (i = 0; i < N_RUNNERS; i++)
 		context[i] = start_runner(TIMEOUT_USEC, i, NOISE_USEC, NOISE_BIAS,
@@ -305,15 +308,17 @@ static int run_test(int n)
 				done++;
 				/* fallthrough */
 			case RUNNER_DEAD:
-				release_runner(context[i]);
+				rctx = context[i];
 				context[i] = NULL;
+				release_runner(rctx);
 				break;
 			case RUNNER_CANCELLED:
 				if (last) {
-					condlog(3, "%s: releasing %p",
-						__func__, context[i]);
-					release_runner(context[i]);
+					rctx = context[i];
 					context[i] = NULL;
+					condlog(3, "%s: releasing %p",
+						__func__, rctx);
+					release_runner(rctx);
 				} else
 					running++;
 				break;
