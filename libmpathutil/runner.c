@@ -4,6 +4,7 @@
 #include <sched.h>
 #include <time.h>
 #include <pthread.h>
+#include <unistd.h>
 #include <urcu/uatomic.h>
 #include "util.h"
 #include "debug.h"
@@ -44,8 +45,10 @@ static void cleanup_context(struct runner_context **prctx)
 	struct runner_context *rctx = *prctx;
 	int st;
 
-	if (!rctx)
-		return;
+	if (!rctx) {
+		condlog(0, "ERROR: %s: rctx is NULL", __func__);
+		pause();
+	}
 
 	st = uatomic_cmpxchg(&rctx->status, RUNNER_RUNNING, RUNNER_DONE);
 	/*
