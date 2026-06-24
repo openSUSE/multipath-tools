@@ -83,7 +83,8 @@ lib/libchecktur.so:
 
 %.out:	%-test lib/libchecktur.so
 	@echo == running $< ==
-	@LD_LIBRARY_PATH=.:$(mpathutildir):$(mpathcmddir) ./$< >$@ 2>&1 || { cat "$@"; false; }
+	$(Q)ulimit -c unlimited; \
+	LD_LIBRARY_PATH=.:$(mpathutildir):$(mpathcmddir) ./$< >$@ 2>&1 || { cat "$@"; false; }
 
 %.vgr:  %-test lib/libchecktur.so
 	@echo == running valgrind for $< ==
@@ -93,13 +94,14 @@ lib/libchecktur.so:
 OBJS = $(TESTS:%=%.o) $(HELPERS)
 
 runner-test.out: runner-test
-	$(Q)./runner-test.sh >$@ 2>&1
+	$(Q)ulimit -c unlimited; \
+	./runner-test.sh >$@ 2>&1
 
 runner-test.vgr: runner-test
 	$(Q)VALGRIND=1 ./runner-test.sh >$@ 2>&1
 
 test_clean:
-	$(Q)$(RM) $(TESTS:%=%.out) $(TESTS:%=%.vgr) *.so* runner-test.out runner-test.vgr
+	$(Q)$(RM) $(TESTS:%=%.out) $(TESTS:%=%.vgr) *.so* runner-test.out runner-test.vgr core*
 
 valgrind_clean:
 	$(Q)$(RM) $(TESTS:%=%.vgr)
