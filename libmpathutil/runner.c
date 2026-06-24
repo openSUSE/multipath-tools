@@ -40,10 +40,10 @@ struct runner_context {
 	char __attribute__((aligned(sizeof(void *)))) data[];
 };
 
-static void cleanup_context(struct runner_context **prctx)
+static void cleanup_context(void *arg)
 {
-	struct runner_context *rctx = *prctx;
 	int st;
+	struct runner_context *rctx = arg;
 
 	if (!rctx) {
 		condlog(0, "ERROR: %s: rctx is NULL", __func__);
@@ -82,7 +82,9 @@ static void *runner_thread(void *arg)
 	 * The cleanup function makes sure memory is freed if the thread is
 	 * cancelled (-fexceptions).
 	 */
-	struct runner_context *rctx __attribute__((cleanup(cleanup_context))) = arg;
+	struct runner_context *rctx = arg;
+
+	pthread_cleanup_push(cleanup_context, arg);
 
 #ifdef RUNNER_START_DELAY_US
 	/*
@@ -98,10 +100,12 @@ static void *runner_thread(void *arg)
 #endif
 
 	st = uatomic_cmpxchg(&rctx->status, RUNNER_IDLE, RUNNER_RUNNING);
-	if (st != RUNNER_IDLE)
-		return NULL;
 
-	(*rctx->func)(rctx->data);
+	/* Only run the function if we haven't been cancelled */
+	if (st == RUNNER_IDLE)
+		(*rctx->func)(rctx->data);
+
+	pthread_cleanup_pop(1);
 	return NULL;
 }
 
