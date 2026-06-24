@@ -56,7 +56,6 @@ jobs:
               runner: ubuntu-24.04
             compiler: clang
     runs-on: ${{ matrix.variant.runner }}
-    container: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -65,7 +64,10 @@ jobs:
           echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
       - name: build and test
         id: test
-        run: make CC=${{ matrix.compiler }} READLINE=libreadline -j$(nproc) -Orecurse test
+        run: |
+          docker run -w /build -v${{ github.workspace }}:/build \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
+            CC=${{ matrix.compiler }} READLINE=libreadline -j$(nproc) -Orecurse test
         continue-on-error: true
       - name: create binary archive
         run: make test-progs.tar
