@@ -53,6 +53,10 @@ jobs:
         run: echo READLINE=libreadline >> $GITHUB_ENV
         if: matrix.os == 'debian-jessie'
 
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
+
       - name: build and test
         id: test
         run: |
@@ -121,6 +125,10 @@ jobs:
         run: echo READLINE=libreadline >> $GITHUB_ENV
         if: matrix.os == 'debian-jessie'
 
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
+
       - name: build and test with clang
         id: test
         run: |
@@ -182,6 +190,10 @@ jobs:
 
       - name: unpack binary archive
         run: tar xfmv test-progs.tar
+
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
 
       - name: run root tests
         id: test

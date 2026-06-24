@@ -56,6 +56,9 @@ jobs:
         run: |
           __arch="${{ matrix.arch }}"
           echo "ARCH_NAME=${__arch//\//-}" >>"$GITHUB_ENV"
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
       - name: compile and run unit tests
         id: test
         run: |

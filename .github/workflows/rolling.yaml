@@ -60,6 +60,9 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v4
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
       - name: build and test
         id: test
         run: make CC=${{ matrix.compiler }} READLINE=libreadline -j$(nproc) -Orecurse test
