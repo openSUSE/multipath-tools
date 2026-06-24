@@ -137,10 +137,10 @@ test-progs.cpio: test-progs
 test-progs.tar: test-progs
 	$(Q)tar cf $@ $(TEST-ARTIFACTS)
 
-test-outputs.cpio: $(wildcard tests/*.out) $(wildcard tests/*.vgr)
+test-outputs.cpio: $(wildcard tests/*.out) $(wildcard tests/*.vgr) $(wildcard tests/core*)
 	$(Q)printf "%s\\n" $^ | cpio -o -H crc >$@
 
-test-outputs.tar: $(wildcard tests/*.out) $(wildcard tests/*.vgr)
+test-outputs.tar: $(wildcard tests/*.out) $(wildcard tests/*.vgr) $(wildcard tests/core*)
 	$(Q)tar cf "$@" $^ || touch $@
 
 .PHONY:	TAGS
