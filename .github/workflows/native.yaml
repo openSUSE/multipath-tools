@@ -77,6 +77,11 @@ jobs:
           path: test-progs.tar
           overwrite: true
 
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+r
+        if: steps.test.outcome != 'success'
+
       - name: create test-outputs.tar
         run: make test-outputs.tar
         if: steps.test.outcome != 'success'
@@ -137,6 +142,11 @@ jobs:
             ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
             -j$(nproc) -Orecurse V=1 READLINE=$READLINE test
         continue-on-error: true
+
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+r
+        if: steps.test.outcome != 'success'
 
       - name: create test-outputs.tar
         run: make test-outputs.tar
@@ -206,6 +216,11 @@ jobs:
             ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
             -C tests V=1 directio.out dmevents.out
         continue-on-error: true
+
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+r
+        if: steps.test.outcome != 'success'
 
       - name: create test-outputs.tar
         run: make test-outputs.tar

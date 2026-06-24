@@ -79,6 +79,10 @@ jobs:
           path: test-progs.tar
           overwrite: true
         if: steps.test.outcome != 'success'
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+r
+        if: steps.test.outcome != 'success'
       - name: save test outputs
         run: make test-outputs.tar
         if: steps.test.outcome != 'success'

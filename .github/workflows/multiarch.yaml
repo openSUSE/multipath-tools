@@ -69,6 +69,10 @@ jobs:
             -w /build -v${{ github.workspace }}:/build \
             ghcr.io/mwilck/multipath-build-${{ matrix.os }} test
         continue-on-error: true
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+x
+        if: steps.test.outcome != 'success'
       - name: create archives
         run: |
           docker run --platform linux/${{ matrix.arch }} \
