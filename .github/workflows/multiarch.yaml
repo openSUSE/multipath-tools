@@ -30,7 +30,6 @@ on:
 jobs:
 
   build-current:
-    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -40,14 +39,30 @@ jobs:
           - fedora-rawhide
           - opensuse-tumbleweed
         arch: [ppc64le, s390x, 386, arm/v7]
+        variant:
+          - arch: ppc64le
+            runner: ubuntu-24.04
+          - arch: s390x
+            runner: ubuntu-24.04
+          - arch: 386
+            runner: ubuntu-24.04
+          - arch: arm/v7
+            runner: ubuntu-24.04-arm
         exclude:
           - os: fedora-rawhide
-            arch: 386
+            variant:
+              arch: 386
+              runner: ubuntu-24.04
           - os: fedora-rawhide
-            arch: arm/v7
+            variant:
+              arch: arm/v7
+              runner: ubuntu-24.04-arm
         include:
           - os: alpine
-            arch: aarch64
+            variant:
+              arch: aarch64
+              runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.variant.runner }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -57,7 +72,7 @@ jobs:
           image: tonistiigi/binfmt:latest
       - name: set architecture name
         run: |
-          __arch="${{ matrix.arch }}"
+          __arch="${{ matrix.variant.arch }}"
           echo "ARCH_NAME=${__arch//\//-}" >>"$GITHUB_ENV"
       - name: Set coredump pattern
         run: |
@@ -65,7 +80,7 @@ jobs:
       - name: compile and run unit tests
         id: test
         run: |
-          docker run --pids-limit 4096 --platform linux/${{ matrix.arch }} \
+          docker run --pids-limit 4096 --platform linux/${{ matrix.variant.arch }} \
             -w /build -v${{ github.workspace }}:/build \
             ghcr.io/mwilck/multipath-build-${{ matrix.os }} test
         continue-on-error: true
@@ -75,7 +90,7 @@ jobs:
         if: steps.test.outcome != 'success'
       - name: create archives
         run: |
-          docker run --platform linux/${{ matrix.arch }} \
+          docker run --platform linux/${{ matrix.variant.arch }} \
             -w /build -v${{ github.workspace }}:/build \
             ghcr.io/mwilck/multipath-build-${{ matrix.os }} test-progs.tar test-outputs.tar
         if: steps.test.outcome != 'success'
