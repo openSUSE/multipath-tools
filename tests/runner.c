@@ -76,6 +76,7 @@
 #include "runner.h"
 #include "runner.h"
 #include "globals.c"
+#include "../third-party/valgrind/valgrind.h"
 
 #define MILLION 1000000
 #define BILLION 1000000000
@@ -109,6 +110,14 @@ static bool IGNORE_CANCEL = false;
 
 /* gap in the paylod to similate larger size */
 #define PAYLOAD_GAP 128
+
+/* Max time to wait for threads to finish on exit */
+#define MAX_SECS_WAIT_ON_EXIT 30
+
+/* Min time to wait for threads to finish on exit */
+#define MIN_USECS_WAIT_ON_EXIT 100000
+
+static bool MEMCHECK_ACTIVE = false;
 
 struct payload {
 	long wait_nsec;
@@ -338,6 +347,27 @@ static int run_test(int n)
 	condlog(2, "%10d%10d%10d%10d%10d", n, N_RUNNERS, N_RUNNERS - running,
 		done, errors);
 
+	if (MEMCHECK_ACTIVE && IGNORE_CANCEL) {
+		const struct timespec high = { MAX_SECS_WAIT_ON_EXIT, 0 };
+		const struct timespec low = { 0, 1000 * MIN_USECS_WAIT_ON_EXIT };
+
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		timespecsub(&stop, &now, &stop);
+		if (timespeccmp(&stop, &low) < 0)
+			stop = low;
+		if (timespeccmp(&stop, &high) > 0) {
+			condlog(2, "%s: capping wait time (%lld.%06llds), valgrind may show \"possibly lost\" memory",
+				__func__, (long long)stop.tv_sec,
+				(long long)stop.tv_nsec / 1000);
+			stop = high;
+		}
+		if (stop.tv_sec >= 0) {
+			condlog(3, "%s: waiting %lld.%06llds for threads to finish",
+				__func__, (long long)stop.tv_sec,
+				(long long)stop.tv_nsec / 1000);
+			nanosleep(&stop, NULL);
+		}
+	}
 	if (killed) {
 		condlog(2, "%s: termination signal received", __func__);
 		exit(0);
@@ -372,6 +402,28 @@ static int setup_signal_handler(int sig, void (*handler)(int))
 	return 0;
 }
 
+/* https://stackoverflow.com/questions/34813412/how-to-detect-if-building-with-address-sanitizer-when-building-with-gcc-4-8
+ */
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer) && !defined(__SANITIZE_ADDRESS__) // for clang
+#define __SANITIZE_ADDRESS__ // GCC already sets this
+#endif
+#endif
+
+static bool detect_memcheck(void)
+{
+#if defined(__SANITIZE_ADDRESS__)
+	const char *asan;
+
+	asan = getenv("ASAN_OPTIONS");
+	if (asan && strstr(asan, "detect_leaks=1"))
+		return true;
+#endif
+	if (RUNNING_ON_VALGRIND)
+		return true;
+	return false;
+}
+
 int run_tests(void)
 {
 	int errors = 0, i;
@@ -380,6 +432,7 @@ int run_tests(void)
 	if (setup_signal_handler(SIGINT, int_handler) != 0)
 		return -1;
 
+	MEMCHECK_ACTIVE = detect_memcheck();
 	rctxs = calloc(N_RUNNERS, sizeof(*context));
 	if (rctxs == NULL)
 		/* arbitrary number to indicate OOM error */
