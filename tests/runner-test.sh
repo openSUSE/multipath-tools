@@ -8,15 +8,15 @@ RUNNER=./runner-test
 if [ "$VALGRIND" ]; then
     command -v valgrind >/dev/null && \
 	RUNNER="valgrind --leak-check=full --error-exitcode=128 --max-threads=5000 --suppressions=./runner-test.supp ./runner-test"
+elif ldd ./runner-test | grep -q libasan; then
+    # LSAN is not supported on ppc64le
+    case $(uname -m) in
+	x86_64|aarch64)
+	    export ASAN_OPTIONS="detect_leaks=1:detect_odr_violation=0"
+	    export LSAN_OPTIONS="report_objects=1"
+	    ;;
+    esac
 fi
-
-# LSAN is not supported on ppc64le
-case $(uname -m) in
-    x86_64|aarch64)
-	export ASAN_OPTIONS="detect_leaks=1:detect_odr_violation=0"
-	export LSAN_OPTIONS="report_objects=1"
-	;;
-esac
 
 LONG=
 while [ $# -gt 0 ]; do
