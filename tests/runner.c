@@ -553,7 +553,7 @@ int main(int argc, char *argv[])
 	if (TIMEOUT_USEC == 0)
 		TIMEOUT_USEC = 1;
 
-	condlog(2, "Runner: timeout=%ld us, noise interval=[-%ld:%ld] us, steps=%d",
+	condlog(2, "Runner: timeout=%ld us, noise interval=[%ld:%ld] us, steps=%d",
 		TIMEOUT_USEC, TIMEOUT_USEC - NOISE_USEC,
 		TIMEOUT_USEC + NOISE_BIAS * NOISE_USEC, SLEEP_STEPS);
 	condlog(2, "Other : poll interval=%ld us, ignore cancellation=%s, runners=%d, repeat=%d, kill timeout=%ld us",
