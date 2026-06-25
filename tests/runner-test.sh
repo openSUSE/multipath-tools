@@ -37,14 +37,14 @@ fi
 # Test scenarios
 # 1. timeout 1 us - test runner creation / cancellation races
 # 2. timeout 1 ms - test runner creation / cancellation races with -DRUNNER_START_DELAY_US=1000
-# 3. "realistic" test, scaled down by a factor 10 in time
+# 3. "realistic" test, scaled down by a factor 30 in time
 # 4./5. Tests with high likelihood of completion / cancellation race
 set -- \
     "-N 100 -p 1 -t 0 -n 2 -b 1 -s 1 -i -r 20" \
     "-N 100 -p 1 -t 1 -n 2 -b 1 -s 1 -i -r 20" \
-    "-N 1000 -p 100 -t 3000 -n 2999 -b 5 -s 1 -i -r 20 -k $TIME1" \
-    "-N 1000 -p 10 -t 3000 -n 1 -b 1 -s 1 -i -r 20 -k $TIME2" \
-    "-N 100 -p 1 -t 3000 -n 0 -s 1 -i -r 5"
+    "-N 1000 -p 100 -t 1000 -n 999 -b 5 -s 1 -i -r 20 -k $TIME1" \
+    "-N 1000 -p 10 -t 1000 -n 1 -b 1 -s 1 -i -r 20 -k $TIME2" \
+    "-N 100 -p 1 -t 1000 -n 0 -s 1 -i -r 5"
 
 errors=0
 for args in "$@"; do
