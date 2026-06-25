@@ -6,6 +6,7 @@ on:
       - queue
       - tip
       - 'stable-*'
+      - musl
     paths:
       - '.github/workflows/multiarch.yaml'
       - '**.h'
