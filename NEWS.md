@@ -9,6 +9,53 @@ release. These bug fixes will be tracked in stable branches.
 
 See [README.md](README.md) for additional information.
 
+## multipath-tools 0.15.0, 2026/07
+
+### User-visible changes
+
+* All path checkers run in asynchronous mode now by default, using a new
+  generic asynchronous checker framework. This improves the stability of
+  multipathd in the presence of non-responsive devices when using path
+  checkers other than `tur` and `directio`. Use the `force_sync`
+  parameter in `multipath.conf` to switch back to the previous, synchronous
+  behavior, especially if you observe strong spikes of CPU load on systems
+  with a lot of path devices. Note that the likelihood of such spikes should
+  be strongly reduced since multipath-tools 0.10.0. Commit 6f7daba ff.
+* The configuration options `rr_min_io`, `rr_min_io_rq`, and `rr_weight` are now
+  deprecated and have no effect. These options have not been supported by the
+  kernel since version 4.6. Users should remove them from `multipath.conf`.
+  Commits 91f91c7 ff.
+* Fix ALUA asymmetric access state descriptions in multipathd logs, so that
+  the same terms are used as by the kernel ("lba-dependent", "transitioning").
+  Commit fa2eb12.
+* Don't set a hardware handler for bio-based multipath devices. The kernel
+  rejects this anyway. Commit b6c7aab.
+
+### Bug fixes
+
+* Fix WWID detection for legacy devices that use the older SCSI-2 VPD page
+  0x83 format for their device identifier. Commit ed6f6ae.
+* kpartx: Fix an integer overflow in the GPT partition table size calculation.
+  A crafted partition table with an extremely large number of partition entries
+  could trigger the overflow. Commit 8697ea7, 15310a3.
+* kpartx: Fix several issues in the DASD partition table reader that could be
+  triggered by a maliciously crafted disk image. Commits c616a95 ff.
+* Fix duplicate "checker timed out" log messages when `log_checker_err` is
+  set to `once`. Commit 8933b22.
+
+### Other changes
+
+* Man page improvements
+
+### CI
+
+* Removed the `check_spelling` GitHub Action after a
+  [security incident](https://github.com/jsoref/2026-06-16-credential-leak)
+  reported against the action's source repository.
+* Added coredump collection in the CI.
+* GitHub action updates related to node 20 depreciation on GitHub.
+* Fixes for various errors in the CI.
+
 ## multipath-tools 0.14.3, 2026/02
 
 * Fix boot failures with multipath introduced in 0.14.1. Commit 01cc89c.
