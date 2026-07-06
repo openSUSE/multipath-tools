@@ -9,6 +9,40 @@ release. These bug fixes will be tracked in stable branches.
 
 See [README.md](README.md) for additional information.
 
+## multipath-tools 0.14.4, 2026/07
+
+### User-visible changes
+
+* Fix ALUA asymmetric access state descriptions in multipathd logs, so that
+  the same terms are used as by the kernel ("lba-dependent", "transitioning").
+* Don't set a hardware handler for bio-based multipath devices. The kernel
+  rejects this anyway.
+
+### Bug fixes
+
+* Fix WWID detection for legacy devices that use the older SCSI-2 VPD page
+  0x83 format for their device identifier.
+* kpartx: Fix an integer overflow in the GPT partition table size calculation.
+  A crafted partition table with an extremely large number of partition entries
+  could trigger the overflow.
+* kpartx: Fix several issues in the DASD partition table reader that could be
+  triggered by a maliciously crafted disk image.
+* Fix duplicate "checker timed out" log messages when `log_checker_err` is
+  set to `once`.
+
+### Other changes
+
+* Man page improvements
+
+### CI
+
+* Removed the `check_spelling` GitHub Action after a
+  [security incident](https://github.com/jsoref/2026-06-16-credential-leak)
+  reported against the action's source repository.
+* Added coredump collection in the CI.
+* GitHub action updates related to node 20 depreciation on GitHub.
+* Fixes for various errors in the CI.
+
 ## multipath-tools 0.14.3, 2026/02
 
 * Fix boot failures with multipath introduced in 0.14.1. Commit 01cc89c.
