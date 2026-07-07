@@ -84,7 +84,7 @@ int iet_prio(const char *dev, char * args)
 		return 0;
 	}
 	// check if args format is OK
-	if (sscanf(args, "preferredip=%s", preferredip) ==1) {}
+        if (sscanf(args, "preferredip=%254s", preferredip) == 1) {}
 	else {
 		dc_log(0, "unexpected prio_args format");
 		return 0;
