@@ -51,11 +51,11 @@ int datacore_prio (const char *dev, int sg_fd, char * args,
 		return 0;
 	}
 
-	if (sscanf(args, "timeout=%i preferredsds=%s",
+	if (sscanf(args, "timeout=%i preferredsds=%254s",
 		   (int *)&timeout_ms, preferredsds) == 2) {}
-	else if (sscanf(args, "preferredsds=%s timeout=%i",
+	else if (sscanf(args, "preferredsds=%254s timeout=%i",
 			preferredsds, (int *)&timeout_ms) == 2) {}
-	else if (sscanf(args, "preferredsds=%s",
+	else if (sscanf(args, "preferredsds=%254s",
 			preferredsds) == 1) {}
 	else {
 		dc_log(0, "unexpected prio_args format");
