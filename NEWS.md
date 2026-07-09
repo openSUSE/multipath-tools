@@ -20,6 +20,8 @@
   triggered by a maliciously crafted disk image.
 * Fix duplicate "checker timed out" log messages when `log_checker_err` is
   set to `once`.
+* Avoid potential buffer overflows in the iet and datacore prioritizers.
+  Commit 4611f97.
 
 ### CI
 
