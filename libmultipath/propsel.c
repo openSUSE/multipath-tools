@@ -624,8 +624,8 @@ int select_checker_timeout(struct config *conf, struct path *pp)
 	}
 	pp_set_default(checker_timeout, DEF_TIMEOUT);
 out:
-	condlog(3, "%s: checker timeout = %u s %s", pp->dev, pp->checker_timeout,
-		origin);
+	condlog(3, "%s: checker timeout = %u s %s", pp->dev,
+		pp->checker_timeout, origin);
 	return 0;
 }
 

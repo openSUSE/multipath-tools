@@ -92,8 +92,8 @@ static void *runner_thread(void *arg)
 	 * thread start and thread cancellation.
 	 */
 	do {
-		struct timespec slp = {.tv_sec = 0,
-				       .tv_nsec = 1000 * RUNNER_START_DELAY_US};
+		struct timespec slp = { .tv_sec = 0,
+					.tv_nsec = 1000 * RUNNER_START_DELAY_US };
 
 		nanosleep(&slp, NULL);
 	} while (0);
@@ -198,7 +198,7 @@ int check_runner(struct runner_context *rctx, void *data, unsigned int size)
 struct runner_context *get_runner(runner_func func, void *data,
 				  unsigned int size, unsigned long timeout_usec)
 {
-	static const struct timespec time_zero = {.tv_sec = 0};
+	static const struct timespec time_zero = { .tv_sec = 0 };
 	struct runner_context *rctx;
 	pthread_attr_t attr;
 	int rc;

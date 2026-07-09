@@ -229,7 +229,7 @@ int async_check_check(struct checker *c, union checker_mpcontext *mpc)
 static void async_deep_sleep(const struct runner_data *rdata)
 {
 	static int sleep_cnt;
-	const struct timespec ts = {.tv_sec = ASYNC_SLEEP_SECS, .tv_nsec = 0};
+	const struct timespec ts = { .tv_sec = ASYNC_SLEEP_SECS, .tv_nsec = 0 };
 	int oldstate;
 
 	if (rdata->devt != makedev(ASYNC_TEST_MAJOR, ASYNC_TEST_MINOR) ||

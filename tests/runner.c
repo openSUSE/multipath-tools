@@ -275,7 +275,7 @@ static bool test_sleep(const struct timespec *wait)
 static int run_test(int n)
 {
 	int i, running, done, errors;
-	const struct timespec wait = {.tv_sec = 0, .tv_nsec = 1000 * POLL_USEC};
+	const struct timespec wait = { .tv_sec = 0, .tv_nsec = 1000 * POLL_USEC };
 	struct timespec stop, now;
 	long max_wait = TIMEOUT_USEC + NOISE_BIAS * NOISE_USEC + 100000 +
 			RUNNER_START_DELAY_US;
@@ -390,7 +390,7 @@ static int setup_signal_handler(int sig, void (*handler)(int))
 {
 	sigset_t set;
 	sigfillset(&set);
-	struct sigaction sga = {.sa_handler = NULL};
+	struct sigaction sga = { .sa_handler = NULL };
 
 	sga.sa_handler = handler;
 	sga.sa_mask = set;
@@ -453,7 +453,7 @@ static int fork_test(void)
 	sigset_t set;
 	pid_t child;
 	int wstatus;
-	struct timespec wait_to_kill = {.tv_sec = 0};
+	struct timespec wait_to_kill = { .tv_sec = 0 };
 
 	/* Block all signals. termination signals will be enabled in test_sleep() */
 	sigfillset(&set);
