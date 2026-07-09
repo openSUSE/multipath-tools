@@ -42,6 +42,8 @@ See [README.md](README.md) for additional information.
   triggered by a maliciously crafted disk image. Commits c616a95 ff.
 * Fix duplicate "checker timed out" log messages when `log_checker_err` is
   set to `once`. Commit 8933b22.
+* Avoid potential buffer overflows in the iet and datacore prioritizers.
+  Commit 4611f97.
 
 ### Other changes
 
