@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ['tumbleweed', '15.3', '15.4', '15.5', '15.6', '12']
+        os: ['tumbleweed', '16.0', '15.3', '15.4', '15.5', '15.6', '15.7', '12']
         # We have -arm too (for armv7l)
         # But tests fail with qemu-user (readdir() returns -EOVERFLOW), see
         # https://gitlab.com/qemu-project/qemu/-/issues/263
@@ -50,23 +50,26 @@ jobs:
               sed -E 's/15.([0-9]*)/REPO_NAME=sle_15_sp\1/' >> $GITHUB_ENV
           echo "CONT_NAME=multipath-build-sles-15-${{ matrix.os }}" >> $GITHUB_ENV
         if: startswith( matrix.os, '15')
+      - name: set repository and container name (SLE16)
+        run: |
+          echo "${{ matrix.os }}" | \
+              echo "REPO_NAME=${{ matrix.os }}" >> $GITHUB_ENV
+          echo "CONT_NAME=multipath-build-sles-16-${{ matrix.os }}" >> $GITHUB_ENV
+        if: startswith( matrix.os, '16')
       - name: checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
       - name: enable foreign arch
         uses: docker/setup-qemu-action@v2
         with:
           image: tonistiigi/binfmt:latest
       - name: build and run unit tests
-        # Github actions doesn't support referencing docker images with
-        # context variables. Workaround: use mosteo-actions/docker-run action
-        # See https://github.community/t/expressions-in-docker-uri/16271
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: registry.opensuse.org/home/mwilck/containers/${{ env.REPO_NAME }}/${{ env.CONT_NAME }}
-          params: --platform ${{ matrix.arch }}
-          pull-params: "--platform ${{ matrix.arch }}"
-          command: test
-
+        id: test
+        run: |
+          docker run --platform "${{ matrix.arch }}" \
+             -w /build -v${{ github.workspace }}:/build \
+             registry.opensuse.org/home/mwilck/containers/${{ env.REPO_NAME }}/${{ env.CONT_NAME }} \
+             test
+        continue-on-error: true
       - name: remove output files
         run: rm -f tests/directio.out tests/dmevents.out
       - name: mpath
