@@ -83,11 +83,25 @@ jobs:
         run: echo "ROOT_TESTS=dmevents.out" >> $GITHUB_ENV
         if: matrix.arch != 'x86_64'
       - name: run root tests
-        uses: mosteo-actions/docker-run@v1
+        id: root_test
+        run: |
+          docker run --platform "${{ matrix.arch }}" --privileged \
+             -w /build -v${{ github.workspace }}:/build \
+             -v /dev/ram0:/dev/ram0 -e DIO_TEST_DEV=/dev/ram0 \
+             registry.opensuse.org/home/mwilck/containers/${{ env.REPO_NAME }}/${{ env.CONT_NAME }} \
+             -C tests ${{ env.ROOT_TESTS }}
+        continue-on-error: true
+      - name: create archives
+        run: |
+          docker run --platform "${{ matrix.arch }}" --privileged \
+             -w /build -v${{ github.workspace }}:/build \
+             registry.opensuse.org/home/mwilck/containers/${{ env.REPO_NAME }}/${{ env.CONT_NAME }} \
+             test-outputs.tar
+        if: steps.test.outcome != 'success' || steps.root_test.outcome != 'success'
+      - name: upload test outputs
+        uses: actions/upload-artifact@v4
         with:
-          image: registry.opensuse.org/home/mwilck/containers/${{ env.REPO_NAME }}/${{ env.CONT_NAME }}
-          params: >
-            --platform ${{ matrix.arch }} --privileged
-            -v /dev/ram0:/dev/ram0 -e DIO_TEST_DEV=/dev/ram0
-          pull-params: "--platform ${{ matrix.arch }}"
-          command: -C tests ${{ env.ROOT_TESTS }}
+          name: test-${{ matrix.os }}-${{ matrix.arch }}
+          path: test-outputs.tar
+          overwrite: true
+        if: steps.test.outcome != 'success' || steps.root_test.outcome != 'success'
