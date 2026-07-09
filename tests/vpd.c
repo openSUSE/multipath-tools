@@ -825,47 +825,47 @@ make_test_vpd_naa(2, 17);
 make_test_vpd_naa(2, 16);
 
 /* SCSI Name string: EUI64, WWID size: 17 */
-make_test_vpd_str(0, 20, 18)
-make_test_vpd_str(0, 20, 17)
-make_test_vpd_str(0, 20, 16)
-make_test_vpd_str(0, 20, 15)
+make_test_vpd_str(0, 20, 18);
+make_test_vpd_str(0, 20, 17);
+make_test_vpd_str(0, 20, 16);
+make_test_vpd_str(0, 20, 15);
 
 /* SCSI Name string: EUI64, zero padded, WWID size: 16 */
-make_test_vpd_str(16, 20, 18)
-make_test_vpd_str(16, 20, 17)
-make_test_vpd_str(16, 20, 16)
-make_test_vpd_str(16, 20, 15)
+make_test_vpd_str(16, 20, 18);
+make_test_vpd_str(16, 20, 17);
+make_test_vpd_str(16, 20, 16);
+make_test_vpd_str(16, 20, 15);
 
 /* SCSI Name string: NAA, WWID size: 17 */
-make_test_vpd_str(1, 20, 18)
-make_test_vpd_str(1, 20, 17)
-make_test_vpd_str(1, 20, 16)
-make_test_vpd_str(1, 20, 15)
+make_test_vpd_str(1, 20, 18);
+make_test_vpd_str(1, 20, 17);
+make_test_vpd_str(1, 20, 16);
+make_test_vpd_str(1, 20, 15);
 
 /* SCSI Name string: NAA, zero padded, WWID size: 16 */
-make_test_vpd_str(17, 20, 18)
-make_test_vpd_str(17, 20, 17)
-make_test_vpd_str(17, 20, 16)
-make_test_vpd_str(17, 20, 15)
+make_test_vpd_str(17, 20, 18);
+make_test_vpd_str(17, 20, 17);
+make_test_vpd_str(17, 20, 16);
+make_test_vpd_str(17, 20, 15);
 
 /* SCSI Name string: IQN, WWID size: 17 */
-make_test_vpd_str(2, 20, 18)
-make_test_vpd_str(2, 20, 17)
-make_test_vpd_str(2, 20, 16)
-make_test_vpd_str(2, 20, 15)
+make_test_vpd_str(2, 20, 18);
+make_test_vpd_str(2, 20, 17);
+make_test_vpd_str(2, 20, 16);
+make_test_vpd_str(2, 20, 15);
 
 /* SCSI Name string: IQN, zero padded, WWID size: 16 */
-make_test_vpd_str(18, 20, 18)
-make_test_vpd_str(18, 20, 17)
-make_test_vpd_str(18, 20, 16)
-make_test_vpd_str(18, 20, 15)
+make_test_vpd_str(18, 20, 18);
+make_test_vpd_str(18, 20, 17);
+make_test_vpd_str(18, 20, 16);
+make_test_vpd_str(18, 20, 15);
 
 /* PRE-SPC3, WWID size: 34 */
-make_test_vpd_prespc3(40)
-make_test_vpd_prespc3(34)
-make_test_vpd_prespc3(33)
-make_test_vpd_prespc3(32)
-make_test_vpd_prespc3(20)
+make_test_vpd_prespc3(40);
+make_test_vpd_prespc3(34);
+make_test_vpd_prespc3(33);
+make_test_vpd_prespc3(32);
+make_test_vpd_prespc3(20);
 
 static int test_vpd(void)
 {
