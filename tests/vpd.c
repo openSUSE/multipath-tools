@@ -342,8 +342,7 @@ static int create_vpd83(unsigned char *buf, size_t bufsiz, const char *id,
  *
  * Return:	VPD page length.
  */
-static int create_pre_spc3_vpd83(unsigned char *buf, size_t bufsize,
-				 const char *id)
+static int create_pre_spc3_vpd83(unsigned char *buf, size_t bufsize, const char *id)
 {
 	memset(buf, 0, bufsize);
 	buf[1] = 0x83;
