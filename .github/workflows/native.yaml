@@ -46,7 +46,7 @@ jobs:
     runs-on: ${{ matrix.variant.runner }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
         # On jessie, we use libreadline 5 (no licensing issue)
       - name: set readline make option (Jessie)
@@ -123,7 +123,7 @@ jobs:
     runs-on: ${{ matrix.variant.runner }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
         # On jessie, we use libreadline 5 (no licensing issue)
       - name: set readline make option (Jessie)
@@ -191,7 +191,7 @@ jobs:
         run: sudo modprobe brd rd_nr=1 rd_size=65536
 
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: download binary archive
         uses: actions/download-artifact@v4

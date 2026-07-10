@@ -54,7 +54,7 @@ jobs:
           libmount-dev
       - name: checkout ${{ env.PARENT_TAG }}
         if: steps.download_abi.outcome != 'success'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.PARENT_TAG }}
       - name: build ABI for ${{ env.PARENT_TAG }}
@@ -85,7 +85,7 @@ jobs:
         run: /bin/false
         if: env.PARENT_TAG == ''
       - name: checkout ${{ github.ref }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.ref }}
       - name: download ABI for ${{ env.PARENT_TAG }}
