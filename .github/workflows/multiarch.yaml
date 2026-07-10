@@ -66,9 +66,9 @@ jobs:
     runs-on: ${{ matrix.variant.runner }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: enable foreign arch
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v4
         with:
           image: tonistiigi/binfmt:latest
       - name: set architecture name
@@ -96,13 +96,13 @@ jobs:
             ghcr.io/mwilck/multipath-build-${{ matrix.os }} test-progs.tar test-outputs.tar
         if: steps.test.outcome != 'success'
       - name: upload binary archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: binaries-${{ matrix.os }}w-${{ env.ARCH_NAME }}
           path: test-progs.tar
         if: steps.test.outcome != 'success'
       - name: upload test outputs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-${{ matrix.os }}-${{ env.ARCH_NAME }}
           path: test-outputs.tar

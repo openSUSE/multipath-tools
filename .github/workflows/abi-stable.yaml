@@ -33,7 +33,7 @@ jobs:
       - name: try to download ABI for ${{ env.PARENT_TAG }}
         id: download_abi
         continue-on-error: true
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v21
         with:
           workflow: abi-stable.yaml
           workflow_conclusion: ''
@@ -54,7 +54,7 @@ jobs:
           libmount-dev
       - name: checkout ${{ env.PARENT_TAG }}
         if: steps.download_abi.outcome != 'success'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.PARENT_TAG }}
       - name: build ABI for ${{ env.PARENT_TAG }}
@@ -62,7 +62,7 @@ jobs:
         run: make -j$(nproc) -Orecurse abi
       - name: save ABI
         if: steps.download_abi.outcome != 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: multipath-abi-${{ env.PARENT_TAG }}
           path: abi
@@ -85,12 +85,12 @@ jobs:
         run: /bin/false
         if: env.PARENT_TAG == ''
       - name: checkout ${{ github.ref }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.ref }}
       - name: download ABI for ${{ env.PARENT_TAG }}
         id: download_abi
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v21
         with:
           workflow: abi-stable.yaml
           workflow_conclusion: ''
@@ -113,7 +113,7 @@ jobs:
         continue-on-error: true
       - name: save differences
         if: steps.check_abi.outcome != 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: abi-test
           path: abi-test

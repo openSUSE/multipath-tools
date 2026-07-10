@@ -20,7 +20,7 @@ jobs:
         rl: ['', 'libreadline', 'libedit']
         cc: [ gcc, clang ]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: update
         run: sudo apt-get update
       - name: dependencies
@@ -77,7 +77,7 @@ jobs:
         rl: ['', 'libreadline', 'libedit']
         cc: [ gcc, clang ]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: mpath
         run: sudo modprobe dm_multipath
       - name: brd

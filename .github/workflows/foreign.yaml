@@ -41,11 +41,11 @@ jobs:
     container: ghcr.io/mwilck/multipath-cross-debian_cross-${{ matrix.os }}-${{ matrix.arch }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: build
         run: make -j$(nproc) -Orecurse test-progs.tar
       - name: upload binary archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cross-${{ matrix.os }}-${{ matrix.arch }}
           path: test-progs.tar
@@ -72,13 +72,13 @@ jobs:
         run: echo CONTAINER_ARCH="arm/v7" >> $GITHUB_ENV
         if: matrix.arch == 'armhf'
       - name: download binary archive
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: cross-${{ matrix.os }}-${{ matrix.arch }}
       - name: unpack binary archive
         run: tar xfv test-progs.tar
       - name: enable foreign arch
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v4
         with:
           image: tonistiigi/binfmt:latest
       - name: Set coredump pattern
@@ -103,7 +103,7 @@ jobs:
         run: make test-outputs.tar
         if: steps.test.outcome != 'success'
       - name: upload test outputs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-${{ matrix.os }}-${{ matrix.arch }}
           path: test-outputs.tar
@@ -138,13 +138,13 @@ jobs:
         run: echo CONTAINER_ARCH="arm/v7" >> $GITHUB_ENV
         if: matrix.arch == 'armhf'
       - name: download binary archive
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: cross-${{ matrix.os }}-${{ matrix.arch }}
       - name: unpack binary archive
         run: tar xfv test-progs.tar
       - name: enable foreign arch
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v4
         with:
           image: tonistiigi/binfmt:latest
       - name: Set coredump pattern
@@ -172,7 +172,7 @@ jobs:
         run: make test-outputs.tar
         if: steps.root-test.outcome != 'success'
       - name: upload test outputs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: root-test-${{ matrix.os }}-${{ matrix.arch }}
           path: test-outputs.tar
