@@ -71,7 +71,7 @@ jobs:
             ghcr.io/mwilck/multipath-build-${{ matrix.os }} test-progs.tar
 
       - name: upload test-progs.tar
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: native-${{ matrix.os }}-${{ matrix.variant.arch }}
           path: test-progs.tar
@@ -87,7 +87,7 @@ jobs:
         if: steps.test.outcome != 'success'
 
       - name: upload test-outputs.tar
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: gcc-outputs-${{ matrix.os }}-${{ matrix.variant.arch }}
           path: test-outputs.tar
@@ -153,7 +153,7 @@ jobs:
         if: steps.test.outcome != 'success'
 
       - name: upload test-outputs.tar
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: clang-outputs-${{ matrix.os }}-${{ matrix.variant.arch }}
           path: test-outputs.tar
@@ -194,7 +194,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: download binary archive
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: native-${{ matrix.os }}-${{ matrix.variant.arch }}
 
@@ -227,7 +227,7 @@ jobs:
         if: steps.test.outcome != 'success'
 
       - name: upload test-outputs.tar
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: clang-outputs-${{ matrix.os }}-${{ matrix.variant.arch }}
           path: test-outputs.tar

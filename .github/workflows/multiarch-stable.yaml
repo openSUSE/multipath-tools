@@ -73,7 +73,7 @@ jobs:
             ghcr.io/mwilck/multipath-build-${{ matrix.os }} test-progs.tar
         if: steps.test.outcome != 'success'
       - name: upload binary archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: binaries-${{ matrix.os }}-${{ env.ARCH_NAME }}
           path: test-progs.tar
@@ -87,7 +87,7 @@ jobs:
         run: make test-outputs.tar
         if: steps.test.outcome != 'success'
       - name: upload test outputs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-${{ matrix.os }}-${{ env.ARCH_NAME }}
           path: test-outputs.tar
