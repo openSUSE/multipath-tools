@@ -36,13 +36,13 @@ jobs:
           libudev-dev libjson-c-dev liburcu-dev libcmocka-dev libedit-dev
           libmount-dev
       - name: checkout ${{ env.PARENT_TAG }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.PARENT_TAG }}
       - name: build ABI for ${{ env.PARENT_TAG }}
         run: make -j$(nproc) -Orecurse abi
       - name: save ABI
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: multipath-abi-${{ env.PARENT_TAG }}
           path: abi
@@ -59,12 +59,12 @@ jobs:
         run: /bin/false
         if: ${{ env.PARENT_TAG == '' }}
       - name: checkout ${{ env.PARENT_TAG }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.ref }}
       - name: download ABI for ${{ env.PARENT_TAG }}
         id: download_abi
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: multipath-abi-${{ env.PARENT_TAG }}
           path: reference-abi
@@ -84,7 +84,7 @@ jobs:
         continue-on-error: true
       - name: save differences
         if: ${{ steps.check_abi.outcome != 'success' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: abi-test
           path: abi-test
