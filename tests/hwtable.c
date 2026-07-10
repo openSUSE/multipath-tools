@@ -406,7 +406,6 @@ static const char _checker[] = "path_checker";
 static const char _vpd_vnd[] = "vpd_vendor";
 static const char _uid_attr[] = "uid_attribute";
 static const char _bl_product[] = "product_blacklist";
-static const char _minio[] = "rr_min_io_rq";
 static const char _no_path_retry[] = "no_path_retry";
 
 /* Device identifiers */
@@ -441,7 +440,6 @@ static const struct key_value bl_bar = { _bl_product, "bar" };
 static const struct key_value bl_baz = { _bl_product, "baz" };
 static const struct key_value bl_barx = { _bl_product, "ba[[rxy]" };
 static const struct key_value bl_bazy = { _bl_product, "ba[zy]" };
-static const struct key_value minio_99 = { _minio, "99" };
 static const struct key_value npr_37 = { _no_path_retry, "37" };
 static const struct key_value npr_queue = { _no_path_retry, "queue" };
 
@@ -552,7 +550,6 @@ static void test_sanity_globals(void **state)
 	assert_string_not_equal(chk_hp.value, DEFAULT_CHECKER);
 	assert_int_not_equal(MULTIBUS, DEFAULT_PGPOLICY);
 	assert_int_not_equal(NO_PATH_RETRY_QUEUE, DEFAULT_NO_PATH_RETRY);
-	assert_int_not_equal(atoi(minio_99.value), DEFAULT_MINIO_RQ);
 	assert_int_not_equal(atoi(npr_37.value), DEFAULT_NO_PATH_RETRY);
 }
 
@@ -1566,7 +1563,6 @@ static void test_multipath_config(const struct hwt_state *hwt)
 	mp = mock_multipath(pp);
 	assert_ptr_not_equal(mp->mpe, NULL);
 	TEST_PROP(prio_name(&pp->prio), prio_rdac.value);
-	assert_int_equal(mp->minio, atoi(minio_99.value));
 	TEST_PROP(pp->uid_attribute, uid_baz.value);
 
 	/* test different wwid */
@@ -1574,14 +1570,13 @@ static void test_multipath_config(const struct hwt_state *hwt)
 	mp = mock_multipath(pp);
 	// assert_ptr_equal(mp->mpe, NULL);
 	TEST_PROP(prio_name(&pp->prio), prio_emc.value);
-	assert_int_equal(mp->minio, DEFAULT_MINIO_RQ);
 	TEST_PROP(pp->uid_attribute, uid_baz.value);
 }
 
 static int setup_multipath_config(void **state)
 {
 	struct hwt_state *hwt = CHECK_STATE(state);
-	const struct key_value kvm[] = { wwid_test, prio_rdac, minio_99 };
+	const struct key_value kvm[] = { wwid_test, prio_rdac };
 	const struct key_value kvp[] = { vnd_foo, prd_bar, prio_emc, uid_baz };
 
 	begin_config(hwt);
@@ -1612,14 +1607,13 @@ static void test_multipath_config_2(const struct hwt_state *hwt)
 	assert_ptr_not_equal(mp, NULL);
 	assert_ptr_not_equal(mp->mpe, NULL);
 	TEST_PROP(prio_name(&pp->prio), prio_rdac.value);
-	assert_int_equal(mp->minio, atoi(minio_99.value));
 	assert_int_equal(mp->no_path_retry, atoi(npr_37.value));
 }
 
 static int setup_multipath_config_2(void **state)
 {
 	const struct key_value kv1[] = { wwid_test, prio_rdac, npr_queue };
-	const struct key_value kv2[] = { wwid_test, minio_99, npr_37 };
+	const struct key_value kv2[] = { wwid_test, npr_37 };
 	struct hwt_state *hwt = CHECK_STATE(state);
 
 	begin_config(hwt);
@@ -1647,14 +1641,13 @@ static void test_multipath_config_3(const struct hwt_state *hwt)
 	assert_ptr_not_equal(mp, NULL);
 	assert_ptr_not_equal(mp->mpe, NULL);
 	TEST_PROP(prio_name(&pp->prio), prio_rdac.value);
-	assert_int_equal(mp->minio, atoi(minio_99.value));
 	assert_int_equal(mp->no_path_retry, atoi(npr_37.value));
 }
 
 static int setup_multipath_config_3(void **state)
 {
 	const struct key_value kv1[] = { wwid_test, prio_rdac, npr_queue };
-	const struct key_value kv2[] = { wwid_test, minio_99, npr_37 };
+	const struct key_value kv2[] = { wwid_test, npr_37 };
 	struct hwt_state *hwt = CHECK_STATE(state);
 
 	begin_config(hwt);

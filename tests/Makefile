@@ -9,18 +9,21 @@ CFLAGS += $(BIN_CFLAGS) -Wno-unused-parameter -Wno-unused-function $(W_MISSING_I
 LIBDEPS += -L. -L $(mpathutildir) -L$(mpathcmddir) -lmultipath -lmpathutil -lmpathcmd -lcmocka
 
 TESTS := uevent parser util dmevents hwtable blacklist unaligned vpd pgpolicy \
-	 alias directio valid devt mpathvalid strbuf sysfs features cli mapinfo
+	 alias directio valid devt mpathvalid strbuf sysfs features cli mapinfo runner \
+	 shared_ptr $(if $(MEMFD_SUPPORT),gpt)
 HELPERS := test-lib.o test-log.o
 
 .PRECIOUS: $(TESTS:%=%-test)
 
-all:	$(TESTS:%=%.out)
+all:	$(TESTS:%=%.out) runner-test.out
 progs:	$(TESTS:%=%-test) lib/libchecktur.so
 valgrind:	$(TESTS:%=%.vgr)
 
 # test-specific compiler flags
 # XYZ-test_FLAGS: Additional compiler flags for this test
 
+kpartxdir := $(TOPDIR)/kpartx
+gpt-test_FLAGS   := -I$(kpartxdir)
 mpathvalid-test_FLAGS := -I$(mpathvaliddir)
 features-test_FLAGS := -I$(multipathdir)/nvme
 
@@ -65,6 +68,10 @@ features-test_LIBDEPS := -ludev -lpthread
 features-test_OBJDEPS := $(mpathutildir)/mt-libudev.o
 cli-test_OBJDEPS := $(daemondir)/cli.o
 mapinfo-test_LIBDEPS = -lpthread -ldevmapper
+runner-test_LIBDEPS = -lpthread
+shared_ptr-test_LIBDEPS = -lpthread
+gpt-test_OBJDEPS := $(kpartxdir)/gpt.o $(kpartxdir)/crc32.o
+
 
 %.o: %.c
 	@echo building $@ because of $?
@@ -76,17 +83,25 @@ lib/libchecktur.so:
 
 %.out:	%-test lib/libchecktur.so
 	@echo == running $< ==
-	@LD_LIBRARY_PATH=.:$(mpathutildir):$(mpathcmddir) ./$< >$@ 2>&1 || { cat "$@"; false; }
+	$(Q)ulimit -c unlimited; \
+	LD_LIBRARY_PATH=.:$(mpathutildir):$(mpathcmddir) ./$< >$@ 2>&1 || { cat "$@"; false; }
 
 %.vgr:  %-test lib/libchecktur.so
 	@echo == running valgrind for $< ==
 	@LD_LIBRARY_PATH=.:$(mpathutildir):$(mpathcmddir) \
-		valgrind --leak-check=full --error-exitcode=128 ./$< >$@ 2>&1
+		valgrind --leak-check=full --error-exitcode=128 --suppressions=./runner-test.supp ./$< >$@ 2>&1
 
 OBJS = $(TESTS:%=%.o) $(HELPERS)
 
+runner-test.out: runner-test
+	$(Q)ulimit -c unlimited; \
+	./runner-test.sh >$@ 2>&1
+
+runner-test.vgr: runner-test
+	$(Q)VALGRIND=1 ./runner-test.sh >$@ 2>&1
+
 test_clean:
-	$(Q)$(RM) $(TESTS:%=%.out) $(TESTS:%=%.vgr) *.so*
+	$(Q)$(RM) $(TESTS:%=%.out) $(TESTS:%=%.vgr) *.so* runner-test.out runner-test.vgr core*
 
 valgrind_clean:
 	$(Q)$(RM) $(TESTS:%=%.vgr)

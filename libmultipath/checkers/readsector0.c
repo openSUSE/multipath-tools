@@ -1,41 +1,27 @@
 /*
  * Copyright (c) 2004, 2005 Christophe Varoqui
  */
-#include <stdio.h>
-
+#include <sys/types.h>
 #include "checkers.h"
 #include "libsg.h"
+#include "async_checker.h"
 
-struct readsector0_checker_context {
-	void * dummy;
-};
-
-int libcheck_init (__attribute__((unused)) struct checker * c)
-{
-	return 0;
-}
-
-void libcheck_free (__attribute__((unused)) struct checker * c)
-{
-	return;
-}
-
-int libcheck_check (struct checker * c)
+int libcheck_async_func(struct runner_data *rdata)
 {
 	unsigned char buf[4096];
 	unsigned char sbuf[SENSE_BUFF_LEN];
 	int ret;
 
-	ret = sg_read(c->fd, &buf[0], 4096, &sbuf[0],
-		      SENSE_BUFF_LEN, c->timeout);
+	ret = sg_read(rdata->fd, &buf[0], 4096, &sbuf[0], SENSE_BUFF_LEN,
+		      rdata->timeout);
 
 	switch (ret)
 	{
 	case PATH_DOWN:
-		c->msgid = CHECKER_MSGID_DOWN;
+		rdata->msgid = CHECKER_MSGID_DOWN;
 		break;
 	case PATH_UP:
-		c->msgid = CHECKER_MSGID_UP;
+		rdata->msgid = CHECKER_MSGID_UP;
 		break;
 	default:
 		break;

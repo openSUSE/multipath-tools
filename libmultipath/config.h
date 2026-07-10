@@ -64,10 +64,8 @@ struct hwentry {
 
 	int pgpolicy;
 	int pgfailback;
-	int rr_weight;
 	int no_path_retry;
 	int minio;
-	int minio_rq;
 	int flush_on_last_del;
 	int fast_io_fail;
 	unsigned int dev_loss;
@@ -114,10 +112,8 @@ struct mpentry {
 	uint8_t sa_flags;
 	int pgpolicy;
 	int pgfailback;
-	int rr_weight;
 	int no_path_retry;
 	int minio;
-	int minio_rq;
 	int flush_on_last_del;
 	int attribute_flags;
 	int user_friendly_names;
@@ -146,12 +142,10 @@ struct config {
 	int pgpolicy_flag;
 	int pgpolicy;
 	int minio;
-	int minio_rq;
 	unsigned int checkint;
 	unsigned int max_checkint;
 	unsigned int adjust_int;
 	int pgfailback;
-	int rr_weight;
 	int no_path_retry;
 	int user_friendly_names;
 	int bindings_read_only;

@@ -398,7 +398,6 @@ struct multipath *mock_multipath__(struct vectors *vecs, struct path *pp)
 	struct multipath *mp;
 	struct config *conf;
 	struct mocked_path mop;
-	/* pretend new dm, use minio_rq,  */
 	static const unsigned int fake_dm_tgt_version[3] = { 1, 1, 1 };
 
 	mocked_path_from_path(&mop, pp);
@@ -414,7 +413,6 @@ struct multipath *mock_multipath__(struct vectors *vecs, struct path *pp)
 	select_no_path_retry(conf, mp);
 	will_return(__wrap_libmp_get_version, fake_dm_tgt_version);
 	select_retain_hwhandler(conf, mp);
-	will_return(__wrap_libmp_get_version, fake_dm_tgt_version);
 	select_minio(conf, mp);
 	put_multipath_config(conf);
 

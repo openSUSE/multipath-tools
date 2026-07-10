@@ -1208,6 +1208,18 @@ parse_vpd_pg83(const unsigned char *in, size_t in_len,
 	if (out_len <= 1)
 		return 0;
 
+	/*
+	 * Not a valid SPC-2/3 vpd page 83. Assume it's a SCSI-2 style
+	 * descriptor.
+	 */
+	if (in_len >= 20 && in[6] != 0) {
+		len = 0;
+		vpd_type = 0x3;
+		vpd_len = in_len - 4;
+		vpd = in + 4;
+		goto decode;
+	}
+
 	d = in + 4;
 	while (d <= in + in_len - 4) {
 		bool invalid = false;
@@ -1323,6 +1335,7 @@ parse_vpd_pg83(const unsigned char *in, size_t in_len,
 	vpd_type = vpd[1] & 0xf;
 	vpd_len = vpd[3];
 	vpd += 4;
+decode:
 	/* untaint vpd_len for coverity */
 	if (vpd_len > WWID_SIZE) {
 		condlog(1, "%s: suspicious designator length %zu truncated to %u",
@@ -1985,20 +1998,18 @@ start_checker (struct path * pp, struct config *conf, int daemon, int oldstate)
 			return -1;
 		}
 		checker_set_fd(c, pp->fd);
-		if (checker_init(c, pp->mpp?&pp->mpp->mpcontext:NULL)) {
+		if (checker_init(c)) {
 			checker_clear(c);
 			condlog(3, "%s: checker init failed", pp->dev);
 			return -1;
 		}
 	}
-	if (pp->mpp && !c->mpcontext)
-		checker_mp_init(c, &pp->mpp->mpcontext);
 	checker_clear_message(c);
 	if (conf->force_sync == 0)
 		checker_set_async(c);
 	else
 		checker_set_sync(c);
-	checker_check(c, oldstate);
+	checker_check(pp, oldstate);
 	return 0;
 }
 
@@ -2008,7 +2019,7 @@ get_state (struct path * pp)
 	struct checker * c = &pp->checker;
 	int state, lvl;
 
-	state = checker_get_state(c);
+	state = checker_get_state(pp);
 
 	lvl = state == pp->oldstate || state == PATH_PENDING ? 4 : 3;
 	condlog(lvl, "%s: %s state = %s", pp->dev,

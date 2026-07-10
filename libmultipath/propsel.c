@@ -211,28 +211,6 @@ out:
 	return 0;
 }
 
-/*
- * selectors :
- * traverse the configuration layers from most specific to most generic
- * stop at first explicit setting found
- */
-int select_rr_weight(struct config *conf, struct multipath * mp)
-{
-	const char *origin;
-	STRBUF_ON_STACK(buff);
-
-	mp_set_mpe(rr_weight);
-	mp_set_ovr(rr_weight);
-	mp_set_hwe(rr_weight);
-	mp_set_conf(rr_weight);
-	mp_set_default(rr_weight, DEFAULT_RR_WEIGHT);
-out:
-	print_rr_weight(&buff, mp->rr_weight);
-	condlog(3, "%s: rr_weight = %s %s", mp->alias,
-		get_strbuf_str(&buff), origin);
-	return 0;
-}
-
 int select_pgfailback(struct config *conf, struct multipath * mp)
 {
 	const char *origin;
@@ -597,6 +575,11 @@ int select_hwhandler(struct config *conf, struct multipath *mp)
 
 	dh_state = &handler[2];
 
+	if (mp->queue_mode == QUEUE_MODE_BIO) {
+		mp->hwhandler = DEFAULT_HWHANDLER;
+		origin = "(setting: disabled due to \"queue_mode bio\")";
+		goto set;
+	}
 	/*
 	 * TPGS_UNDEF means that ALUA support couldn't determined either way
 	 * yet, probably because the path was always down.
@@ -637,6 +620,7 @@ out:
 		mp->hwhandler = DEFAULT_HWHANDLER;
 		origin = tpgs_origin;
 	}
+set:
 	mp->hwhandler = strdup(mp->hwhandler);
 	condlog(3, "%s: hardware_handler = \"%s\" %s", mp->alias, mp->hwhandler,
 		origin);
@@ -655,8 +639,8 @@ int select_checker_timeout(struct config *conf, struct path *pp)
 	}
 	pp_set_default(checker_timeout, DEF_TIMEOUT);
 out:
-	condlog(3, "%s checker timeout = %u s %s", pp->dev, pp->checker_timeout,
-		origin);
+	condlog(3, "%s: checker timeout = %u s %s", pp->dev,
+		pp->checker_timeout, origin);
 	return 0;
 }
 
@@ -886,21 +870,6 @@ out:
 }
 
 int
-select_minio_rq (struct config *conf, struct multipath * mp)
-{
-	const char *origin;
-
-	do_set(minio_rq, mp->mpe, mp->minio, multipaths_origin);
-	do_set(minio_rq, conf->overrides, mp->minio, overrides_origin);
-	do_set_from_hwe(minio_rq, mp, mp->minio, hwe_origin);
-	do_set(minio_rq, conf, mp->minio, conf_origin);
-	do_default(mp->minio, DEFAULT_MINIO_RQ);
-out:
-	condlog(3, "%s: minio = %i %s", mp->alias, mp->minio, origin);
-	return 0;
-}
-
-int
 select_minio_bio (struct config *conf, struct multipath * mp)
 {
 	const char *origin;
@@ -917,13 +886,14 @@ out:
 
 int select_minio(struct config *conf, struct multipath *mp)
 {
-	unsigned int minv_dmrq[3] = {1, 1, 0}, version[3];
+	const char *origin;
 
-	if (!libmp_get_version(DM_MPATH_TARGET_VERSION, version)
-	    && VERSION_GE(version, minv_dmrq))
-		return select_minio_rq(conf, mp);
-	else
+	if (mp->queue_mode == QUEUE_MODE_BIO)
 		return select_minio_bio(conf, mp);
+
+	mp_set_default(minio, DEFAULT_MINIO_RQ);
+	condlog(3, "%s: minio = %i %s", mp->alias, mp->minio, origin);
+	return 0;
 }
 
 int select_fast_io_fail(struct config *conf, struct path *pp)

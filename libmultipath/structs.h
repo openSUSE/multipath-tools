@@ -43,12 +43,6 @@ enum free_path_mode {
 	FREE_PATHS
 };
 
-enum rr_weight_mode {
-	RR_WEIGHT_UNDEF,
-	RR_WEIGHT_NONE,
-	RR_WEIGHT_PRIO
-};
-
 enum failback_mode {
 	FAILBACK_UNDEF,
 	FAILBACK_MANUAL,
@@ -483,7 +477,6 @@ struct multipath {
 	int uev_wait_tick;
 	int pgfailback;
 	int failback_tick;
-	int rr_weight;
 	int no_path_retry; /* number of retries after all paths are down */
 	int retry_tick;    /* remaining times for retries */
 	int disable_queueing;
@@ -540,8 +533,7 @@ struct multipath {
 	unsigned int stat_queueing_timeouts;
 	unsigned int stat_map_failures;
 
-	/* checkers shared data */
-	void * mpcontext;
+	union checker_mpcontext mpcontext;
 
 	/* persistent management data*/
 	int prkey_source;

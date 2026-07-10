@@ -1,8 +1,6 @@
 /*
  * Copyright (c) 2005 Christophe Varoqui
  */
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -15,6 +13,7 @@
 #include "debug.h"
 
 #include "sg_include.h"
+#include "async_checker.h"
 
 #define INQUIRY_CMDLEN		6
 #define INQUIRY_CMD		0x12
@@ -55,11 +54,7 @@ struct control_mode_page {
 	unsigned char dontcare1[6];
 };
 
-struct rdac_checker_context {
-	void * dummy;
-};
-
-int libcheck_init (struct checker * c)
+int libcheck_async_init(struct runner_data *rdata)
 {
 	unsigned char cmd[MODE_SEN_SEL_CMDLEN];
 	unsigned char sense_b[SENSE_BUFF_LEN];
@@ -85,9 +80,9 @@ int libcheck_init (struct checker * c)
 	io_hdr.dxferp = &current;
 	io_hdr.cmdp = cmd;
 	io_hdr.sbp = sense_b;
-	io_hdr.timeout = c->timeout * 1000;
+	io_hdr.timeout = rdata->timeout * 1000;
 
-	if (ioctl(c->fd, SG_IO, &io_hdr) < 0)
+	if (ioctl(rdata->fd, SG_IO, &io_hdr) < 0)
 		goto out;
 
 	/* check the TAS bit to see if it is already set */
@@ -101,7 +96,7 @@ int libcheck_init (struct checker * c)
 	io_hdr.dxferp = &changeable;
 	memset(&changeable, 0, sizeof(struct control_mode_page));
 
-	if (ioctl(c->fd, SG_IO, &io_hdr) < 0)
+	if (ioctl(rdata->fd, SG_IO, &io_hdr) < 0)
 		goto out;
 
 	/* if TAS bit is not settable exit */
@@ -122,7 +117,7 @@ int libcheck_init (struct checker * c)
 	io_hdr.dxfer_direction = SG_DXFER_TO_DEV;
 	io_hdr.dxferp = &current;
 
-	if (ioctl(c->fd, SG_IO, &io_hdr) < 0)
+	if (ioctl(rdata->fd, SG_IO, &io_hdr) < 0)
 		goto out;
 
 	/* Success */
@@ -131,11 +126,6 @@ out:
 	if (set == 0)
 		condlog(3, "rdac checker failed to set TAS bit");
 	return 0;
-}
-
-void libcheck_free(__attribute__((unused)) struct checker *c)
-{
-	return;
 }
 
 static int
@@ -288,15 +278,15 @@ checker_msg_string(const struct volume_access_inq *inq)
 	}
 }
 
-int libcheck_check(struct checker * c)
+int libcheck_async_func(struct runner_data *rdata)
 {
 	struct volume_access_inq inq;
 	int ret, inqfail;
 
 	inqfail = 0;
 	memset(&inq, 0, sizeof(struct volume_access_inq));
-	ret = do_inq(c->fd, 0xC9, &inq, sizeof(struct volume_access_inq),
-		     c->timeout);
+	ret = do_inq(rdata->fd, 0xC9, &inq, sizeof(struct volume_access_inq),
+		     rdata->timeout);
 	if (ret != PATH_UP) {
 		inqfail = 1;
 		goto done;
@@ -340,17 +330,17 @@ int libcheck_check(struct checker * c)
 done:
 	switch (ret) {
 	case PATH_WILD:
-		c->msgid = CHECKER_MSGID_UNSUPPORTED;
+		rdata->msgid = CHECKER_MSGID_UNSUPPORTED;
 		break;
 	case PATH_DOWN:
-		c->msgid = (inqfail ? RDAC_MSGID_INQUIRY_FAILED :
-			    checker_msg_string(&inq));
+		rdata->msgid = (inqfail ? RDAC_MSGID_INQUIRY_FAILED
+					: checker_msg_string(&inq));
 		break;
 	case PATH_UP:
-		c->msgid = CHECKER_MSGID_UP;
+		rdata->msgid = CHECKER_MSGID_UP;
 		break;
 	case PATH_GHOST:
-		c->msgid = CHECKER_MSGID_GHOST;
+		rdata->msgid = CHECKER_MSGID_GHOST;
 		break;
 	}
 

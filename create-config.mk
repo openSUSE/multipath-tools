@@ -60,6 +60,18 @@ check_var = $(shell \
 	echo "$$found" \
 	)
 
+check_compile = $(shell \
+	if /bin/echo -e '$2' | gcc -D _GNU_SOURCE -o /dev/null -c -xc -; then \
+		found=1; \
+		status="yes"; \
+	else \
+		found=0; \
+		status="no"; \
+	fi; \
+	echo 1>&2 "Compile-checking for $1 ... $$status"; \
+	echo "$$found" \
+	)
+
 # Test special behavior of gcc 4.8 with nested initializers
 # gcc 4.8 compiles blacklist.c only with -Wno-missing-field-initializers
 TEST_MISSING_INITIALIZERS = $(shell \
@@ -123,6 +135,11 @@ endif
 
 ifneq ($(call check_file,$(kernel_incdir)/linux/nvme_ioctl.h),0)
 	ANA_SUPPORT := 1
+endif
+
+HASH = \#
+ifneq ($(call check_compile,memfd_create,$(HASH)include <sys/mman.h>\nvoid *c = memfd_create;),0)
+	MEMFD_SUPPORT := 1
 endif
 
 ENABLE_LIBDMMP := $(call check_cmd,$(PKG_CONFIG) --exists json-c)
@@ -201,3 +218,4 @@ $(TOPDIR)/config.mk:	$(multipathdir)/autoconfig.h
 	@echo "W_URCU_TYPE_LIMITS := $(call TEST_URCU_TYPE_LIMITS)" >>$@
 	@echo "ENABLE_LIBDMMP := $(ENABLE_LIBDMMP)" >>$@
 	@echo "C_STD := $(C_STD)" >>$@
+	@echo "MEMFD_SUPPORT := $(MEMFD_SUPPORT)" >>$@
