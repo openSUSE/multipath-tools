@@ -29,7 +29,7 @@ jobs:
       - name: get reference ABI
         id: reference
         continue-on-error: true
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v21
         with:
           workflow: abi.yaml
           branch: ${{ env.ABI_BRANCH }}

@@ -33,7 +33,7 @@ jobs:
       - name: try to download ABI for ${{ env.PARENT_TAG }}
         id: download_abi
         continue-on-error: true
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v21
         with:
           workflow: abi-stable.yaml
           workflow_conclusion: ''
@@ -90,7 +90,7 @@ jobs:
           ref: ${{ github.ref }}
       - name: download ABI for ${{ env.PARENT_TAG }}
         id: download_abi
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v21
         with:
           workflow: abi-stable.yaml
           workflow_conclusion: ''
