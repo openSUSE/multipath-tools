@@ -22,14 +22,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: set ABI branch
-        if: ${{ env.ABI_BRANCH == '' }}
+        if: env.ABI_BRANCH == ''
         run: echo "ABI_BRANCH=master" >> $GITHUB_ENV
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: get reference ABI
         id: reference
         continue-on-error: true
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v21
         with:
           workflow: abi.yaml
           branch: ${{ env.ABI_BRANCH }}
@@ -47,7 +47,7 @@ jobs:
       - name: create ABI
         run: make -Orecurse -j$(nproc) abi.tar.gz
       - name: save ABI
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: abi
           path: abi
@@ -55,11 +55,11 @@ jobs:
       - name: compare ABI against reference
         id: compare
         continue-on-error: true
-        if: ${{ steps.reference.outcome == 'success' }}
+        if: steps.reference.outcome == 'success'
         run: make abi-test
       - name: save differences
-        if: ${{ steps.compare.outcome == 'failure' }}
-        uses: actions/upload-artifact@v4
+        if: steps.compare.outcome == 'failure'
+        uses: actions/upload-artifact@v7
         with:
           name: abi-test
           path: abi-test
