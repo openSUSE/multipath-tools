@@ -7,7 +7,7 @@ on:
       - tip
       - next
       - factory
-      - sles*
+      - 'sles*'
       - 'slfo-*'
       - 'stable-*'
     paths:
