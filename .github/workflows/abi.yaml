@@ -47,7 +47,7 @@ jobs:
       - name: create ABI
         run: make -Orecurse -j$(nproc) abi.tar.gz
       - name: save ABI
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: abi
           path: abi
@@ -59,7 +59,7 @@ jobs:
         run: make abi-test
       - name: save differences
         if: steps.compare.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: abi-test
           path: abi-test
