@@ -57,9 +57,9 @@ jobs:
           echo "CONT_NAME=multipath-build-sles-16-${{ matrix.os }}" >> $GITHUB_ENV
         if: startswith( matrix.os, '16')
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: enable foreign arch
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v4
         with:
           image: tonistiigi/binfmt:latest
       - name: build and run unit tests
@@ -99,7 +99,7 @@ jobs:
              test-outputs.tar
         if: steps.test.outcome != 'success' || steps.root_test.outcome != 'success'
       - name: upload test outputs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-${{ matrix.os }}-${{ matrix.arch }}
           path: test-outputs.tar
