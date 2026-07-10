@@ -58,7 +58,7 @@ jobs:
     runs-on: ${{ matrix.variant.runner }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set coredump pattern
         run: |
           echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern

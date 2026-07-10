@@ -41,7 +41,7 @@ jobs:
     container: ghcr.io/mwilck/multipath-cross-debian_cross-${{ matrix.os }}-${{ matrix.arch }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: build
         run: make -j$(nproc) -Orecurse test-progs.tar
       - name: upload binary archive
@@ -78,7 +78,7 @@ jobs:
       - name: unpack binary archive
         run: tar xfv test-progs.tar
       - name: enable foreign arch
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v4
         with:
           image: tonistiigi/binfmt:latest
       - name: Set coredump pattern
@@ -144,7 +144,7 @@ jobs:
       - name: unpack binary archive
         run: tar xfv test-progs.tar
       - name: enable foreign arch
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v4
         with:
           image: tonistiigi/binfmt:latest
       - name: Set coredump pattern
