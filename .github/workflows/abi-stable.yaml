@@ -21,18 +21,31 @@ jobs:
         run: >
           echo ${{ github.ref }} |
           sed -E 's,refs/heads/stable-([0-9]\.[0-9]*)\.y,PARENT_TAG=\1.0,' >> $GITHUB_ENV
-        if: ${{ github.event_name == 'push' }}
+        if: github.event_name == 'push'
       - name: get parent tag (PR)
         run: >
           echo ${{ github.base_ref }} |
           sed -E 's,stable-([0-9]\.[0-9]*)\.y,PARENT_TAG=\1.0,' >> $GITHUB_ENV
-        if: ${{ github.event_name == 'pull_request' }}
+        if: github.event_name == 'pull_request'
       - name: assert parent tag
         run: /bin/false
-        if: ${{ env.PARENT_TAG == '' }}
+        if: env.PARENT_TAG == ''
+      - name: try to download ABI for ${{ env.PARENT_TAG }}
+        id: download_abi
+        continue-on-error: true
+        uses: dawidd6/action-download-artifact@v21
+        with:
+          workflow: abi-stable.yaml
+          workflow_conclusion: ''
+          branch: ${{ github.ref_name }}
+          name: multipath-abi-${{ env.PARENT_TAG }}
+          search_artifacts: true
+          path: __unused__
       - name: update
+        if: steps.download_abi.outcome != 'success'
         run: sudo apt-get update
       - name: dependencies
+        if: steps.download_abi.outcome != 'success'
         run: >
           sudo apt-get install --yes gcc
           gcc make pkg-config abigail-tools
@@ -40,13 +53,16 @@ jobs:
           libudev-dev libjson-c-dev liburcu-dev libcmocka-dev libedit-dev
           libmount-dev
       - name: checkout ${{ env.PARENT_TAG }}
-        uses: actions/checkout@v4
+        if: steps.download_abi.outcome != 'success'
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.PARENT_TAG }}
       - name: build ABI for ${{ env.PARENT_TAG }}
+        if: steps.download_abi.outcome != 'success'
         run: make -j$(nproc) -Orecurse abi
       - name: save ABI
-        uses: actions/upload-artifact@v4
+        if: steps.download_abi.outcome != 'success'
+        uses: actions/upload-artifact@v7
         with:
           name: multipath-abi-${{ env.PARENT_TAG }}
           path: abi
@@ -59,28 +75,31 @@ jobs:
         run: >
           echo ${{ github.ref }} |
           sed -E 's,refs/heads/stable-([0-9]\.[0-9]*)\.y,PARENT_TAG=\1.0,' >> $GITHUB_ENV
-        if: ${{ github.event_name == 'push' }}
+        if: github.event_name == 'push'
       - name: get parent tag (PR)
         run: >
           echo ${{ github.base_ref }} |
           sed -E 's,stable-([0-9]\.[0-9]*)\.y,PARENT_TAG=\1.0,' >> $GITHUB_ENV
-        if: ${{ github.event_name == 'pull_request' }}
+        if: github.event_name == 'pull_request'
       - name: assert parent tag
         run: /bin/false
-        if: ${{ env.PARENT_TAG == '' }}
+        if: env.PARENT_TAG == ''
       - name: checkout ${{ github.ref }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.ref }}
       - name: download ABI for ${{ env.PARENT_TAG }}
         id: download_abi
-        uses: actions/download-artifact@v4
+        uses: dawidd6/action-download-artifact@v21
         with:
+          workflow: abi-stable.yaml
+          workflow_conclusion: ''
+          branch: ${{ github.ref_name }}
           name: multipath-abi-${{ env.PARENT_TAG }}
+          search_artifacts: true
           path: reference-abi
       - name: update
         run: sudo apt-get update
-        if: steps.download_abi.outcome != 'success'
       - name: dependencies
         run: >
           sudo apt-get install --yes gcc
@@ -93,8 +112,8 @@ jobs:
         run: make -j$(nproc) -Orecurse abi-test
         continue-on-error: true
       - name: save differences
-        if: ${{ steps.check_abi.outcome != 'success' }}
-        uses: actions/upload-artifact@v4
+        if: steps.check_abi.outcome != 'success'
+        uses: actions/upload-artifact@v7
         with:
           name: abi-test
           path: abi-test
