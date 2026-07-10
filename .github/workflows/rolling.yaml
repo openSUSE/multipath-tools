@@ -1,0 +1,96 @@
+name: compile and unit test on rolling distros
+on:
+  push:
+    branches:
+      - master
+      - queue
+      - tip
+      - 'stable-*'
+    paths:
+      - '.github/workflows/rolling.yaml'
+      - '**.h'
+      - '**.c'
+      - '**Makefile*'
+      - '**.mk'
+  pull_request:
+    branches:
+      - master
+      - queue
+      - 'stable-*'
+    paths:
+      - '.github/workflows/rolling.yaml'
+      - '**.h'
+      - '**.c'
+      - '**Makefile*'
+      - '**.mk'
+  # run weekly to catch rolling distro changes
+  schedule:
+    - cron: '30 06 * * 1'
+
+jobs:
+  rolling:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - debian-sid
+          - opensuse-tumbleweed
+          - fedora-rawhide
+        variant:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+        compiler:
+          - gcc
+          - clang
+        include:
+          - os: alpine
+            variant:
+              arch: x86_64
+              runner: ubuntu-24.04
+            compiler: gcc
+          - os: alpine
+            variant:
+              arch: x86_64
+              runner: ubuntu-24.04
+            compiler: clang
+    runs-on: ${{ matrix.variant.runner }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
+      - name: build and test
+        id: test
+        run: |
+          docker run -w /build -v${{ github.workspace }}:/build \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
+            CC=${{ matrix.compiler }} READLINE=libreadline -j$(nproc) -Orecurse test
+        continue-on-error: true
+      - name: create binary archive
+        run: make test-progs.tar
+        if: steps.test.outcome != 'success'
+      - name: upload binary archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.os }}-${{ matrix.variant.arch }}-${{ matrix.compiler }}
+          path: test-progs.tar
+        if: steps.test.outcome != 'success'
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+r
+        if: steps.test.outcome != 'success'
+      - name: create test-outputs.tar
+        run: make test-outputs.tar
+        if: steps.test.outcome != 'success'
+      - name: upload test-outputs.tar
+        uses: actions/upload-artifact@v4
+        with:
+          name: outputs-${{ matrix.os }}-${{ matrix.variant.arch }}-${{ matrix.compiler }}
+          path: test-outputs.tar
+        if: steps.test.outcome != 'success'
+      - name: fail
+        run: /bin/false
+        if: steps.test.outcome != 'success'

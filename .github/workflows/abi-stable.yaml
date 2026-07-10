@@ -1,0 +1,122 @@
+name: check-abi for stable branch
+on:
+  push:
+    branches:
+      - 'stable-*'
+    paths:
+      - '.github/workflows/abi-stable.yaml'
+      - '**.h'
+      - '**.c'
+      - '**.version'
+  pull_request:
+    branches:
+      - 'stable-*'
+  workflow_dispatch:
+
+jobs:
+  reference-abi:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: get parent tag (push)
+        run: >
+          echo ${{ github.ref }} |
+          sed -E 's,refs/heads/stable-([0-9]\.[0-9]*)\.y,PARENT_TAG=\1.0,' >> $GITHUB_ENV
+        if: github.event_name == 'push'
+      - name: get parent tag (PR)
+        run: >
+          echo ${{ github.base_ref }} |
+          sed -E 's,stable-([0-9]\.[0-9]*)\.y,PARENT_TAG=\1.0,' >> $GITHUB_ENV
+        if: github.event_name == 'pull_request'
+      - name: assert parent tag
+        run: /bin/false
+        if: env.PARENT_TAG == ''
+      - name: try to download ABI for ${{ env.PARENT_TAG }}
+        id: download_abi
+        continue-on-error: true
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: abi-stable.yaml
+          workflow_conclusion: ''
+          branch: ${{ github.ref_name }}
+          name: multipath-abi-${{ env.PARENT_TAG }}
+          search_artifacts: true
+          path: __unused__
+      - name: update
+        if: steps.download_abi.outcome != 'success'
+        run: sudo apt-get update
+      - name: dependencies
+        if: steps.download_abi.outcome != 'success'
+        run: >
+          sudo apt-get install --yes gcc
+          gcc make pkg-config abigail-tools
+          libdevmapper-dev libreadline-dev libaio-dev libsystemd-dev
+          libudev-dev libjson-c-dev liburcu-dev libcmocka-dev libedit-dev
+          libmount-dev
+      - name: checkout ${{ env.PARENT_TAG }}
+        if: steps.download_abi.outcome != 'success'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PARENT_TAG }}
+      - name: build ABI for ${{ env.PARENT_TAG }}
+        if: steps.download_abi.outcome != 'success'
+        run: make -j$(nproc) -Orecurse abi
+      - name: save ABI
+        if: steps.download_abi.outcome != 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: multipath-abi-${{ env.PARENT_TAG }}
+          path: abi
+
+  check-abi:
+    runs-on: ubuntu-24.04
+    needs: reference-abi
+    steps:
+      - name: get parent tag (push)
+        run: >
+          echo ${{ github.ref }} |
+          sed -E 's,refs/heads/stable-([0-9]\.[0-9]*)\.y,PARENT_TAG=\1.0,' >> $GITHUB_ENV
+        if: github.event_name == 'push'
+      - name: get parent tag (PR)
+        run: >
+          echo ${{ github.base_ref }} |
+          sed -E 's,stable-([0-9]\.[0-9]*)\.y,PARENT_TAG=\1.0,' >> $GITHUB_ENV
+        if: github.event_name == 'pull_request'
+      - name: assert parent tag
+        run: /bin/false
+        if: env.PARENT_TAG == ''
+      - name: checkout ${{ github.ref }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - name: download ABI for ${{ env.PARENT_TAG }}
+        id: download_abi
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: abi-stable.yaml
+          workflow_conclusion: ''
+          branch: ${{ github.ref_name }}
+          name: multipath-abi-${{ env.PARENT_TAG }}
+          search_artifacts: true
+          path: reference-abi
+      - name: update
+        run: sudo apt-get update
+      - name: dependencies
+        run: >
+          sudo apt-get install --yes gcc
+          gcc make pkg-config abigail-tools
+          libdevmapper-dev libreadline-dev libaio-dev libsystemd-dev
+          libudev-dev libjson-c-dev liburcu-dev libcmocka-dev libedit-dev
+          libmount-dev
+      - name: check ABI of ${{ github.ref }} against ${{ env.PARENT_TAG }}
+        id: check_abi
+        run: make -j$(nproc) -Orecurse abi-test
+        continue-on-error: true
+      - name: save differences
+        if: steps.check_abi.outcome != 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: abi-test
+          path: abi-test
+      - name: fail
+        run: /bin/false
+        if: steps.check_abi.outcome != 'success'

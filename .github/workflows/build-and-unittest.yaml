@@ -1,0 +1,114 @@
+name: basic-build-and-ci
+on:
+  push:
+    branches:
+      - master
+      - queue
+      - tip
+      - 'stable-*'
+  pull_request:
+    branches:
+      - master
+      - queue
+      - 'stable-*'
+jobs:
+  jammy:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        rl: ['', 'libreadline', 'libedit']
+        cc: [ gcc, clang ]
+    steps:
+      - uses: actions/checkout@v4
+      - name: update
+        run: sudo apt-get update
+      - name: dependencies
+        run: >
+          sudo apt-get install --yes gcc
+          make pkg-config valgrind
+          libdevmapper-dev libreadline-dev libaio-dev libsystemd-dev
+          libudev-dev libjson-c-dev liburcu-dev libcmocka-dev libedit-dev
+          libmount-dev linux-modules-extra-$(uname -r)
+      - name: mpath
+        run: sudo modprobe dm_multipath
+      - name: zram
+        run: sudo modprobe zram num_devices=0
+      - name: zram-device
+        run: echo ZRAM=$(sudo cat /sys/class/zram-control/hot_add) >> $GITHUB_ENV
+      - name: set-zram-size
+        run: echo 1G | sudo tee /sys/block/zram$ZRAM/disksize
+      - name: set CC
+        run: echo CC=${{ matrix.cc }} >> $GITHUB_ENV
+      - name: set optflags
+        # valgrind doesn't support the dwarf-5 format of clang 14
+        run: echo OPT='-O2 -gdwarf-4 -fstack-protector-strong' >> $GITHUB_ENV
+        if: matrix.cc == 'clang'
+      - name: build
+        run: >
+          make -Orecurse -j$(nproc)
+          READLINE=${{ matrix.rl }} OPTFLAGS="$OPT"
+      - name: test
+        run: >
+          make -Orecurse -j$(nproc)
+          OPTFLAGS="$OPT" test
+      - name: valgrind-test
+        id: valgrind
+        run: >
+          make -Orecurse -j$(nproc)
+          OPTFLAGS="$OPT" valgrind-test
+        continue-on-error: true
+      - name: valgrind-results
+        run: cat tests/*.vgr
+      - name: fail if valgrind failed
+        run: /bin/false
+        if: steps.valgrind.outcome != 'success'
+      - name: clean-nonroot-artifacts
+        run: rm -f tests/dmevents.out tests/directio.out
+      - name: root-test
+        run: sudo make DIO_TEST_DEV=/dev/zram$ZRAM test
+      - name: kpartx-test
+        run: sudo make -C kpartx test
+  noble:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        rl: ['', 'libreadline', 'libedit']
+        cc: [ gcc, clang ]
+    steps:
+      - uses: actions/checkout@v4
+      - name: mpath
+        run: sudo modprobe dm_multipath
+      - name: brd
+        run: sudo modprobe brd rd_nr=1 rd_size=65536
+      - name: update
+        run: sudo apt-get update
+      - name: dependencies
+        run: >
+          sudo apt-get install --yes gcc-10
+          make pkg-config valgrind
+          libdevmapper-dev libreadline-dev libaio-dev libsystemd-dev
+          libudev-dev libjson-c-dev liburcu-dev libcmocka-dev libedit-dev
+          libmount-dev linux-modules-extra-$(uname -r)
+      - name: set CC
+        run: echo CC=${{ matrix.cc }} >> $GITHUB_ENV
+      - name: build
+        run: make -Orecurse -j$(nproc) READLINE=${{ matrix.rl }}
+      - name: test
+        run: make -Orecurse -j$(nproc) test
+      - name: valgrind-test
+        id: valgrind
+        run: make -Orecurse -j$(nproc) valgrind-test
+        continue-on-error: true
+      - name: valgrind-results
+        run: cat tests/*.vgr
+      - name: fail if valgrind failed
+        run: /bin/false
+        if: steps.valgrind.outcome != 'success'
+      - name: clean-nonroot-artifacts
+        run: rm -f tests/dmevents.out tests/directio.out
+      - name: root-test
+        run: sudo make DIO_TEST_DEV=/dev/ram0 test
+      - name: kpartx-test
+        run: sudo make -C kpartx test

@@ -1,0 +1,113 @@
+name: multiarch test for rolling distros
+on:
+  push:
+    branches:
+      - master
+      - queue
+      - tip
+      - 'stable-*'
+      - musl
+    paths:
+      - '.github/workflows/multiarch.yaml'
+      - '**.h'
+      - '**.c'
+      - '**Makefile*'
+      - '**.mk'
+  pull_request:
+    branches:
+      - master
+      - queue
+      - 'stable-*'
+    paths:
+      - '.github/workflows/multiarch.yaml'
+      - '**.h'
+      - '**.c'
+      - '**Makefile*'
+      - '**.mk'
+  # run monthly to catch rolling distro changes
+  schedule:
+    - cron: '45 02 1 * *'
+
+jobs:
+
+  build-current:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - alpine
+          - debian-sid
+          - fedora-rawhide
+          - opensuse-tumbleweed
+        arch: [ppc64le, s390x, 386, arm/v7]
+        variant:
+          - arch: ppc64le
+            runner: ubuntu-24.04
+          - arch: s390x
+            runner: ubuntu-24.04
+          - arch: 386
+            runner: ubuntu-24.04
+          - arch: arm/v7
+            runner: ubuntu-24.04-arm
+        exclude:
+          - os: fedora-rawhide
+            variant:
+              arch: 386
+              runner: ubuntu-24.04
+          - os: fedora-rawhide
+            variant:
+              arch: arm/v7
+              runner: ubuntu-24.04-arm
+        include:
+          - os: alpine
+            variant:
+              arch: aarch64
+              runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.variant.runner }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: enable foreign arch
+        uses: docker/setup-qemu-action@v2
+        with:
+          image: tonistiigi/binfmt:latest
+      - name: set architecture name
+        run: |
+          __arch="${{ matrix.variant.arch }}"
+          echo "ARCH_NAME=${__arch//\//-}" >>"$GITHUB_ENV"
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
+      - name: compile and run unit tests
+        id: test
+        run: |
+          docker run --pids-limit 4096 --platform linux/${{ matrix.variant.arch }} \
+            -w /build -v${{ github.workspace }}:/build \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} test
+        continue-on-error: true
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+x
+        if: steps.test.outcome != 'success'
+      - name: create archives
+        run: |
+          docker run --platform linux/${{ matrix.variant.arch }} \
+            -w /build -v${{ github.workspace }}:/build \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} test-progs.tar test-outputs.tar
+        if: steps.test.outcome != 'success'
+      - name: upload binary archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.os }}w-${{ env.ARCH_NAME }}
+          path: test-progs.tar
+        if: steps.test.outcome != 'success'
+      - name: upload test outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-${{ matrix.os }}-${{ env.ARCH_NAME }}
+          path: test-outputs.tar
+          overwrite: true
+        if: steps.test.outcome != 'success'
+      - name: fail if test failed
+        run: /bin/false
+        if: steps.test.outcome != 'success'

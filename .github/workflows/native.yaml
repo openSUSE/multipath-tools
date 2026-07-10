@@ -1,0 +1,239 @@
+name: compile and unit test on native arch
+on:
+  push:
+    branches:
+      - master
+      - queue
+      - tip
+      - 'stable-*'
+    paths:
+      - '.github/workflows/native.yaml'
+      - '**.h'
+      - '**.c'
+      - '**Makefile*'
+      - '**.mk'
+  pull_request:
+    branches:
+      - master
+      - queue
+      - 'stable-*'
+    paths:
+      - '.github/workflows/native.yaml'
+      - '**.h'
+      - '**.c'
+      - '**Makefile*'
+      - '**.mk'
+
+jobs:
+  stable:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - debian-jessie
+          - debian-buster
+          - debian-bullseye
+          - debian-bookworm
+          - debian-trixie
+          - fedora-43
+          - opensuse-leap-15.6
+          - opensuse-leap-16.0
+        variant:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.variant.runner }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+        # On jessie, we use libreadline 5 (no licensing issue)
+      - name: set readline make option (Jessie)
+        run: echo READLINE=libreadline >> $GITHUB_ENV
+        if: matrix.os == 'debian-jessie'
+
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
+
+      - name: build and test
+        id: test
+        run: |
+          docker run -w ${{ github.workspace }} -v${{ github.workspace }}:${{ github.workspace }} \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
+            -j$(nproc) -Orecurse V=1 READLINE=$READLINE test
+        continue-on-error: true
+
+      - name: create test-progs.tar
+        run: |
+          docker run -w ${{ github.workspace }} -v${{ github.workspace }}:${{ github.workspace }} \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} test-progs.tar
+
+      - name: upload test-progs.tar
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.os }}-${{ matrix.variant.arch }}
+          path: test-progs.tar
+          overwrite: true
+
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+r
+        if: steps.test.outcome != 'success'
+
+      - name: create test-outputs.tar
+        run: make test-outputs.tar
+        if: steps.test.outcome != 'success'
+
+      - name: upload test-outputs.tar
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcc-outputs-${{ matrix.os }}-${{ matrix.variant.arch }}
+          path: test-outputs.tar
+          overwrite: true
+        if: steps.test.outcome != 'success'
+
+      - name: fail if test failed
+        run: /bin/false
+        if: steps.test.outcome != 'success'
+
+  clang:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - debian-buster
+          - debian-bullseye
+          - debian-bookworm
+          - debian-trixie
+          - fedora-43
+          - opensuse-leap-15.6
+          - opensuse-leap-16.0
+        variant:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+        include:
+          - os: debian-jessie
+            variant:
+              arch: x86_64
+              runner: ubuntu-24.04
+    runs-on: ${{ matrix.variant.runner }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+        # On jessie, we use libreadline 5 (no licensing issue)
+      - name: set readline make option (Jessie)
+        run: echo READLINE=libreadline >> $GITHUB_ENV
+        if: matrix.os == 'debian-jessie'
+
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
+
+      - name: build and test with clang
+        id: test
+        run: |
+          docker run --pids-limit 4096 -e CC=clang \
+            -w ${{ github.workspace }} -v${{ github.workspace }}:${{ github.workspace }} \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
+            -j$(nproc) -Orecurse V=1 READLINE=$READLINE test
+        continue-on-error: true
+
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+r
+        if: steps.test.outcome != 'success'
+
+      - name: create test-outputs.tar
+        run: make test-outputs.tar
+        if: steps.test.outcome != 'success'
+
+      - name: upload test-outputs.tar
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-outputs-${{ matrix.os }}-${{ matrix.variant.arch }}
+          path: test-outputs.tar
+          overwrite: true
+        if: steps.test.outcome != 'success'
+
+      - name: fail if test failed
+        run: /bin/false
+        if: steps.test.outcome != 'success'
+
+  root-test:
+    needs: stable
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - debian-jessie
+          - debian-buster
+          - debian-bullseye
+          - debian-bookworm
+          - debian-trixie
+          - fedora-43
+          - opensuse-leap-15.6
+          - opensuse-leap-16.0
+        variant:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.variant.runner }}
+    steps:
+      - name: mpath
+        run: sudo modprobe dm_multipath
+      - name: brd
+        run: sudo modprobe brd rd_nr=1 rd_size=65536
+
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: download binary archive
+        uses: actions/download-artifact@v4
+        with:
+          name: native-${{ matrix.os }}-${{ matrix.variant.arch }}
+
+      - name: unpack binary archive
+        run: tar xfmv test-progs.tar
+
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
+
+      - name: run root tests
+        id: test
+        run: |
+          docker run \
+            --workdir /__w/multipath-tools/multipath-tools --privileged \
+            -v /dev/ram0:/dev/ram0 -e DIO_TEST_DEV=/dev/ram0 \
+            -w /__w/multipath-tools/multipath-tools \
+            -v${{ github.workspace }}:/__w/multipath-tools/multipath-tools \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
+            -C tests V=1 directio.out dmevents.out
+        continue-on-error: true
+
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+r
+        if: steps.test.outcome != 'success'
+
+      - name: create test-outputs.tar
+        run: make test-outputs.tar
+        if: steps.test.outcome != 'success'
+
+      - name: upload test-outputs.tar
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-outputs-${{ matrix.os }}-${{ matrix.variant.arch }}
+          path: test-outputs.tar
+          overwrite: true
+        if: steps.test.outcome != 'success'
+
+      - name: fail if test failed
+        run: /bin/false
+        if: steps.test.outcome != 'success'
