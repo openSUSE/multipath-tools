@@ -72,7 +72,7 @@ jobs:
         run: echo CONTAINER_ARCH="arm/v7" >> $GITHUB_ENV
         if: matrix.arch == 'armhf'
       - name: download binary archive
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: cross-${{ matrix.os }}-${{ matrix.arch }}
       - name: unpack binary archive
@@ -138,7 +138,7 @@ jobs:
         run: echo CONTAINER_ARCH="arm/v7" >> $GITHUB_ENV
         if: matrix.arch == 'armhf'
       - name: download binary archive
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: cross-${{ matrix.os }}-${{ matrix.arch }}
       - name: unpack binary archive
