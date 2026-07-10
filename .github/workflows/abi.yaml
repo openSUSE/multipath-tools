@@ -25,7 +25,7 @@ jobs:
         if: env.ABI_BRANCH == ''
         run: echo "ABI_BRANCH=master" >> $GITHUB_ENV
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: get reference ABI
         id: reference
         continue-on-error: true
