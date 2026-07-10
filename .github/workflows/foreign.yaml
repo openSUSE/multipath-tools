@@ -67,10 +67,10 @@ jobs:
     steps:
       - name: set container arch
         run: echo CONTAINER_ARCH="${{ matrix.arch }}" >> $GITHUB_ENV
-        if: ${{ matrix.arch != 'armhf' }}
+        if: matrix.arch != 'armhf'
       - name: set container arch
         run: echo CONTAINER_ARCH="arm/v7" >> $GITHUB_ENV
-        if: ${{ matrix.arch == 'armhf' }}
+        if: matrix.arch == 'armhf'
       - name: download binary archive
         uses: actions/download-artifact@v4
         with:
@@ -81,17 +81,37 @@ jobs:
         uses: docker/setup-qemu-action@v2
         with:
           image: tonistiigi/binfmt:latest
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
       - name: run tests
-        uses: mosteo-actions/docker-run@v1
+        id: test
+        run: |
+          docker run \
+            --pids-limit 4096 \
+            --workdir /__w/multipath-tools/multipath-tools \
+            --platform linux/${{ env.CONTAINER_ARCH }} \
+            -w /__w/multipath-tools/multipath-tools \
+            -v${{ github.workspace }}:/__w/multipath-tools/multipath-tools \
+            ghcr.io/mwilck/multipath-run-debian-${{ matrix.os }} -C tests
+        continue-on-error: true
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+x
+        if: steps.test.outcome != 'success'
+      - name: save test outputs
+        run: make test-outputs.tar
+        if: steps.test.outcome != 'success'
+      - name: upload test outputs
+        uses: actions/upload-artifact@v4
         with:
-          image: ghcr.io/mwilck/multipath-run-debian-${{ matrix.os }}
-          guest-dir: /__w/multipath-tools/multipath-tools
-          host-dir: ${{ github.workspace }}
-          command: -C tests
-          params: >
-            --workdir /__w/multipath-tools/multipath-tools
-            --platform linux/${{ env.CONTAINER_ARCH }}
-          pull-params: "--platform linux/${{ env.CONTAINER_ARCH }}"
+          name: test-${{ matrix.os }}-${{ matrix.arch }}
+          path: test-outputs.tar
+          overwrite: true
+        if: steps.test.outcome != 'success'
+      - name: fail if test failed
+        run: /bin/false
+        if: steps.test.outcome != 'success'
 
   root-test:
     runs-on: ubuntu-24.04
@@ -113,10 +133,10 @@ jobs:
         run: sudo modprobe brd rd_nr=1 rd_size=65536
       - name: set container arch
         run: echo CONTAINER_ARCH="${{ matrix.arch }}" >> $GITHUB_ENV
-        if: ${{ matrix.arch != 'armhf' }}
+        if: matrix.arch != 'armhf'
       - name: set container arch
         run: echo CONTAINER_ARCH="arm/v7" >> $GITHUB_ENV
-        if: ${{ matrix.arch == 'armhf' }}
+        if: matrix.arch == 'armhf'
       - name: download binary archive
         uses: actions/download-artifact@v4
         with:
@@ -127,23 +147,37 @@ jobs:
         uses: docker/setup-qemu-action@v2
         with:
           image: tonistiigi/binfmt:latest
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
       - name: run tests
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-run-debian-${{ matrix.os }}
-          guest-dir: /__w/multipath-tools/multipath-tools
-          host-dir: ${{ github.workspace }}
-          command: -C tests dmevents.out
-          params: >
-            --workdir /__w/multipath-tools/multipath-tools
-            --platform linux/${{ env.CONTAINER_ARCH }}
-            --privileged
-            -v /dev/ram0:/dev/ram0 -e DIO_TEST_DEV=/dev/ram0
-          pull-params: "--platform linux/${{ env.CONTAINER_ARCH }}"
         id: root-test
+        run: |
+          docker run \
+            --workdir /__w/multipath-tools/multipath-tools \
+            --pids-limit 4096 \
+            --platform linux/${{ env.CONTAINER_ARCH }} \
+            --privileged \
+            -v /dev/ram0:/dev/ram0 -e DIO_TEST_DEV=/dev/ram0 \
+            -w /__w/multipath-tools/multipath-tools \
+            -v${{ github.workspace }}:/__w/multipath-tools/multipath-tools \
+            ghcr.io/mwilck/multipath-run-debian-${{ matrix.os }} \
+            -C tests dmevents.out
         continue-on-error: true
-      - name: show root test output
-        run: for o in tests/*.out; do echo "===== $o ====="; cat "$o"; done
-      - name: fail
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+x
+        if: steps.root-test.outcome != 'success'
+      - name: save test outputs
+        run: make test-outputs.tar
+        if: steps.root-test.outcome != 'success'
+      - name: upload test outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: root-test-${{ matrix.os }}-${{ matrix.arch }}
+          path: test-outputs.tar
+          overwrite: true
+        if: steps.root-test.outcome != 'success'
+      - name: fail if root test failed
         run: /bin/false
-        if: ${{ steps.root-test.outcome == 'failure' }}
+        if: steps.root-test.outcome != 'success'

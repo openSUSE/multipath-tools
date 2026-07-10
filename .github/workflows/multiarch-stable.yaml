@@ -56,33 +56,43 @@ jobs:
         run: |
           __arch="${{ matrix.arch }}"
           echo "ARCH_NAME=${__arch//\//-}" >>"$GITHUB_ENV"
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
       - name: compile and run unit tests
         id: test
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          guest-dir: /build
-          host-dir: ${{ github.workspace }}
-          command: test
-          params: "--platform linux/${{ matrix.arch }}"
-          pull-params: "--platform linux/${{ matrix.arch }}"
+        run: |
+          docker run --pids-limit 4096 --platform linux/${{ matrix.arch }} \
+            -w /build -v${{ github.workspace }}:/build \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} test
         continue-on-error: true
       - name: create binary archive
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          guest-dir: /build
-          host-dir: ${{ github.workspace }}
-          command: test-progs.tar
-          params: "--platform linux/${{ matrix.arch }}"
-          pull-params: "--platform linux/${{ matrix.arch }}"
+        run: |
+          docker run --platform linux/${{ matrix.arch }} \
+            -w /build -v${{ github.workspace }}:/build \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} test-progs.tar
         if: steps.test.outcome != 'success'
       - name: upload binary archive
         uses: actions/upload-artifact@v4
         with:
           name: binaries-${{ matrix.os }}-${{ env.ARCH_NAME }}
           path: test-progs.tar
+          overwrite: true
         if: steps.test.outcome != 'success'
-      - name: fail
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+r
+        if: steps.test.outcome != 'success'
+      - name: save test outputs
+        run: make test-outputs.tar
+        if: steps.test.outcome != 'success'
+      - name: upload test outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-${{ matrix.os }}-${{ env.ARCH_NAME }}
+          path: test-outputs.tar
+          overwrite: true
+        if: steps.test.outcome != 'success'
+      - name: fail if test failed
         run: /bin/false
         if: steps.test.outcome != 'success'

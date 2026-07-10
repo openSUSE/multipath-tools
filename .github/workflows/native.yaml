@@ -48,60 +48,56 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
 
-      - name: set archive name
-        # Leap containers have cpio but not tar
-        run: echo ARCHIVE_TGT=test-progs.cpio >> $GITHUB_ENV
-        if: ${{ startswith(matrix.os, 'opensuse-leap-15') }}
-      - name: set archive name
-        run: echo ARCHIVE_TGT=test-progs.tar >> $GITHUB_ENV
-        if: ${{ !startswith(matrix.os, 'opensuse-leap-15') }}
+        # On jessie, we use libreadline 5 (no licensing issue)
+      - name: set readline make option (Jessie)
+        run: echo READLINE=libreadline >> $GITHUB_ENV
+        if: matrix.os == 'debian-jessie'
+
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
 
       - name: build and test
         id: test
-        if: ${{ matrix.os != 'debian-jessie' }}
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: -j$(nproc) -Orecurse test
+        run: |
+          docker run -w ${{ github.workspace }} -v${{ github.workspace }}:${{ github.workspace }} \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
+            -j$(nproc) -Orecurse V=1 READLINE=$READLINE test
         continue-on-error: true
 
-      - name: build and test (jessie)
-        id: test_jessie
-        # On jessie, we use libreadline 5 (no licensing issue)
-        if: ${{ matrix.os == 'debian-jessie' }}
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: -j$(nproc) -Orecurse READLINE=libreadline test
-        continue-on-error: true
+      - name: create test-progs.tar
+        run: |
+          docker run -w ${{ github.workspace }} -v${{ github.workspace }}:${{ github.workspace }} \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} test-progs.tar
 
-      - name: create ${{ env.ARCHIVE_TGT }}
-        if: ${{ matrix.os != 'debian-jessie' }}
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: ${{ env.ARCHIVE_TGT }}
-      - name: create ${{ env.ARCHIVE_TGT }} (jessie)
-        if: ${{ matrix.os == 'debian-jessie' }}
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: READLINE=libreadline ${{ env.ARCHIVE_TGT }}
-
-      - name: upload binary archive
+      - name: upload test-progs.tar
         uses: actions/upload-artifact@v4
         with:
           name: native-${{ matrix.os }}-${{ matrix.variant.arch }}
-          path: ${{ env.ARCHIVE_TGT }}
+          path: test-progs.tar
           overwrite: true
 
-      - name: fail
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+r
+        if: steps.test.outcome != 'success'
+
+      - name: create test-outputs.tar
+        run: make test-outputs.tar
+        if: steps.test.outcome != 'success'
+
+      - name: upload test-outputs.tar
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcc-outputs-${{ matrix.os }}-${{ matrix.variant.arch }}
+          path: test-outputs.tar
+          overwrite: true
+        if: steps.test.outcome != 'success'
+
+      - name: fail if test failed
         run: /bin/false
-        if: >-
-          ${{ ( matrix.os == 'debian-jessie' &&
-                steps.test_jessie.outcome != 'success' ) ||
-              ( matrix.os != 'debian-jessie' &&
-                steps.test.outcome != 'success' ) }}
+        if: steps.test.outcome != 'success'
+
   clang:
     strategy:
       fail-fast: false
@@ -129,73 +125,44 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
 
-      - name: set archive name
-        # Leap containers have cpio but not tar
-        run: echo ARCHIVE_TGT=test-progs.cpio >> $GITHUB_ENV
-        if: ${{ startswith(matrix.os, 'opensuse-leap-15') }}
-      - name: set archive name
-        run: echo ARCHIVE_TGT=test-progs.tar >> $GITHUB_ENV
-        if: ${{ !startswith(matrix.os, 'opensuse-leap-15') }}
+        # On jessie, we use libreadline 5 (no licensing issue)
+      - name: set readline make option (Jessie)
+        run: echo READLINE=libreadline >> $GITHUB_ENV
+        if: matrix.os == 'debian-jessie'
 
-      - name: clang
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
+
+      - name: build and test with clang
         id: test
-        if: ${{ matrix.os != 'debian-jessie' }}
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          params: -e CC=clang
-          command: -j$(nproc) -Orecurse test
-        continue-on-error: true
-      - name: clang (jessie)
-        id: test_jessie
-        if: ${{ matrix.os == 'debian-jessie' }}
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          params: -e CC=clang
-          command: -j$(nproc) -Orecurse READLINE=libreadline test
+        run: |
+          docker run --pids-limit 4096 -e CC=clang \
+            -w ${{ github.workspace }} -v${{ github.workspace }}:${{ github.workspace }} \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
+            -j$(nproc) -Orecurse V=1 READLINE=$READLINE test
         continue-on-error: true
 
-      - name: create ${{ env.ARCHIVE_TGT }}
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: ${{ env.ARCHIVE_TGT }}
-        if: >-
-          ${{ ( matrix.os == 'debian-jessie' &&
-                steps.test_jessie.outcome != 'success' ) ||
-              ( matrix.os != 'debian-jessie' &&
-                steps.test.outcome != 'success' ) }}
-      - name: create ${{ env.ARCHIVE_TGT }} (jessie)
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          command: READLINE=libreadline ${{ env.ARCHIVE_TGT }}
-        if: >-
-          ${{ ( matrix.os == 'debian-jessie' &&
-                steps.test_jessie.outcome != 'success' ) ||
-              ( matrix.os != 'debian-jessie' &&
-                steps.test.outcome != 'success' ) }}
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+r
+        if: steps.test.outcome != 'success'
 
-      - name: upload binary archive
+      - name: create test-outputs.tar
+        run: make test-outputs.tar
+        if: steps.test.outcome != 'success'
+
+      - name: upload test-outputs.tar
         uses: actions/upload-artifact@v4
         with:
-          name: clang-${{ matrix.os }}-${{ matrix.variant.arch }}
-          path: ${{ env.ARCHIVE_TGT }}
+          name: clang-outputs-${{ matrix.os }}-${{ matrix.variant.arch }}
+          path: test-outputs.tar
           overwrite: true
-        if: >-
-          ${{ ( matrix.os == 'debian-jessie' &&
-                steps.test_jessie.outcome != 'success' ) ||
-              ( matrix.os != 'debian-jessie' &&
-                steps.test.outcome != 'success' ) }}
+        if: steps.test.outcome != 'success'
 
-      - name: fail
+      - name: fail if test failed
         run: /bin/false
-        if: >-
-          ${{ ( matrix.os == 'debian-jessie' &&
-                steps.test_jessie.outcome != 'success' ) ||
-              ( matrix.os != 'debian-jessie' &&
-                steps.test.outcome != 'success' ) }}
+        if: steps.test.outcome != 'success'
 
   root-test:
     needs: stable
@@ -230,27 +197,43 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: native-${{ matrix.os }}-${{ matrix.variant.arch }}
-      - name: unpack binary archive
-        run: cpio -idv < test-progs.cpio
-        if: ${{ startswith(matrix.os, 'opensuse-leap-15') }}
+
       - name: unpack binary archive
         run: tar xfmv test-progs.tar
-        if: ${{ !startswith(matrix.os, 'opensuse-leap-15') }}
+
+      - name: Set coredump pattern
+        run: |
+          echo 'core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
 
       - name: run root tests
-        uses: mosteo-actions/docker-run@v1
-        with:
-          image: ghcr.io/mwilck/multipath-build-${{ matrix.os }}
-          guest-dir: /__w/multipath-tools/multipath-tools
-          host-dir: ${{ github.workspace }}
-          params: >
-            --workdir /__w/multipath-tools/multipath-tools --privileged
-            -v /dev/ram0:/dev/ram0 -e DIO_TEST_DEV=/dev/ram0
-          command: -C tests directio.out dmevents.out
-        id: root-test
+        id: test
+        run: |
+          docker run \
+            --workdir /__w/multipath-tools/multipath-tools --privileged \
+            -v /dev/ram0:/dev/ram0 -e DIO_TEST_DEV=/dev/ram0 \
+            -w /__w/multipath-tools/multipath-tools \
+            -v${{ github.workspace }}:/__w/multipath-tools/multipath-tools \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
+            -C tests V=1 directio.out dmevents.out
         continue-on-error: true
-      - name: show root test output
-        run: for o in tests/*.out; do echo "===== $o ====="; cat "$o"; done
-      - name: fail
+
+      - name: Make core dumps accessible
+        run: |
+          find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+r
+        if: steps.test.outcome != 'success'
+
+      - name: create test-outputs.tar
+        run: make test-outputs.tar
+        if: steps.test.outcome != 'success'
+
+      - name: upload test-outputs.tar
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-outputs-${{ matrix.os }}-${{ matrix.variant.arch }}
+          path: test-outputs.tar
+          overwrite: true
+        if: steps.test.outcome != 'success'
+
+      - name: fail if test failed
         run: /bin/false
-        if: ${{ steps.root-test.outcome == 'failure' }}
+        if: steps.test.outcome != 'success'
