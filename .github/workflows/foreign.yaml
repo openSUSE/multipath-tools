@@ -167,17 +167,17 @@ jobs:
       - name: Make core dumps accessible
         run: |
           find . \( -name 'core*' \) -print0 | xargs -0 -r sudo chmod a+x
-        if: steps.test.outcome != 'success'
+        if: steps.root-test.outcome != 'success'
       - name: save test outputs
         run: make test-outputs.tar
-        if: steps.test.outcome != 'success'
+        if: steps.root-test.outcome != 'success'
       - name: upload test outputs
         uses: actions/upload-artifact@v4
         with:
           name: root-test-${{ matrix.os }}-${{ matrix.arch }}
           path: test-outputs.tar
           overwrite: true
-        if: steps.test.outcome != 'success'
+        if: steps.root-test.outcome != 'success'
       - name: fail if root test failed
         run: /bin/false
         if: steps.root-test.outcome != 'success'
