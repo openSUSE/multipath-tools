@@ -78,7 +78,7 @@ jobs:
       - name: unpack binary archive
         run: tar xfv test-progs.tar
       - name: enable foreign arch
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v4
         with:
           image: tonistiigi/binfmt:latest
       - name: Set coredump pattern
@@ -144,7 +144,7 @@ jobs:
       - name: unpack binary archive
         run: tar xfv test-progs.tar
       - name: enable foreign arch
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v4
         with:
           image: tonistiigi/binfmt:latest
       - name: Set coredump pattern
