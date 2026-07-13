@@ -11,9 +11,9 @@
 #ifndef VERSION_H_INCLUDED
 #define VERSION_H_INCLUDED
 
-#define VERSION_CODE 0x000E03
+#define VERSION_CODE 0x000F00
 /* MMDDYY, in hex */
-#define DATE_CODE    0x02051A
+#define DATE_CODE    0x070D1A
 
 #define PROG    "multipath-tools"
 
