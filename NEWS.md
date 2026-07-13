@@ -31,6 +31,9 @@ See [README.md](README.md) for additional information.
   set to `once`.
 * Avoid potential buffer overflows in the iet and datacore prioritizers.
   Commit 4611f97.
+* iet prioritizer: avoid misleading error message with systemd 256 and
+  newer, and properly use udev to derive path parameters.
+  Fixes [#145](https://github.com/opensvc/multipath-tools/issues/145).
 
 ### CI
 
