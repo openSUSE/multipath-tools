@@ -47,6 +47,8 @@ See [README.md](README.md) for additional information.
 * iet prioritizer: avoid misleading error message with systemd 256 and
   newer, and properly use udev to derive path parameters. Commit c493f1f.
   Fixes [#145](https://github.com/opensvc/multipath-tools/issues/145).
+* An overlong partition delimiter (-p option) could cause kpartx to crash.
+  Fix it. Commit a2f344a.
 
 ### Other changes
 
