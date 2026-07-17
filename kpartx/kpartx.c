@@ -437,7 +437,7 @@ main(int argc, char **argv){
 		case UPDATE:
 			/* ADD and UPDATE share the same code that adds new partitions. */
 			for (j = 0, c = 0; j < n; j++) {
-				char *part_uuid, *reason;
+				char *part_uuid = NULL, *reason;
 
 				if (slices[j].size == 0)
 					continue;
@@ -454,10 +454,13 @@ main(int argc, char **argv){
 					exit(1);
 				}
 
-				op = (dm_find_part(mapname, delim, j + 1, uuid,
-						   partname, sizeof(partname),
-						   &part_uuid, verbose) ?
-				      DM_DEVICE_RELOAD : DM_DEVICE_CREATE);
+				op = dm_find_part(mapname, delim, j + 1, uuid,
+						  partname, sizeof(partname),
+						  &part_uuid, verbose);
+				if (op == DFP_ERR) {
+					r++;
+					continue;
+				}
 
 				if (part_uuid && uuid) {
 					if (check_uuid(uuid, part_uuid, &reason) != 0) {
@@ -500,7 +503,7 @@ main(int argc, char **argv){
 			d = c;
 			while (c) {
 				for (j = 0; j < n; j++) {
-					char *part_uuid, *reason;
+					char *part_uuid = NULL, *reason;
 					int k = slices[j].container - 1;
 
 					if (slices[j].size == 0)
@@ -526,11 +529,14 @@ main(int argc, char **argv){
 						exit(1);
 					}
 
-					op = (dm_find_part(mapname, delim, j + 1, uuid,
-							   partname,
-							   sizeof(partname),
-							   &part_uuid, verbose) ?
-					      DM_DEVICE_RELOAD : DM_DEVICE_CREATE);
+					op = dm_find_part(mapname, delim,
+							  j + 1, uuid, partname,
+							  sizeof(partname),
+							  &part_uuid, verbose);
+					if (op == DFP_ERR) {
+						r++;
+						continue;
+					}
 
 					if (part_uuid && uuid) {
 						if (check_uuid(uuid, part_uuid, &reason) != 0) {
@@ -570,11 +576,11 @@ main(int argc, char **argv){
 			}
 
 			for (j = MAXSLICES-1; j >= 0; j--) {
-				char *part_uuid, *reason;
-				if (slices[j].size ||
-				    !dm_find_part(mapname, delim, j + 1, uuid,
-						  partname, sizeof(partname),
-						  &part_uuid, verbose))
+				char *part_uuid = NULL, *reason;
+				int res = dm_find_part(mapname, delim, j + 1, uuid,
+						       partname, sizeof(partname),
+						       &part_uuid, verbose);
+				if (slices[j].size || res != DFP_DEVICE_RELOAD)
 					continue;
 
 				if (part_uuid && uuid) {

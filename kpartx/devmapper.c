@@ -644,18 +644,19 @@ int dm_find_part(const char *parent, const char *delim, int part,
 	char dev_t[32];
 
 	if (!format_partname(name, namesiz, parent, delim, part)) {
-		if (verbose)
-			fprintf(stderr, "partname too small\n");
-		return 0;
+		fprintf(stderr, "partition name too long for partition %d\n", part);
+		return DFP_ERR;
 	}
 
 	r = dm_map_present(name, part_uuid);
-	if (r == 1 || parent_uuid == NULL || *parent_uuid == '\0')
-		return r;
+	if (r == 1)
+		return DFP_DEVICE_RELOAD;
+	if (parent_uuid == NULL || *parent_uuid == '\0')
+		return DFP_DEVICE_CREATE;
 
 	uuid = make_prefixed_uuid(part, parent_uuid);
 	if (!uuid)
-		return 0;
+		return DFP_DEVICE_CREATE;
 
 	tmp = dm_find_uuid(uuid);
 	if (tmp == NULL)
@@ -688,14 +689,14 @@ int dm_find_part(const char *parent, const char *delim, int part,
 	if (r == 1) {
 		free(tmp);
 		*part_uuid = uuid;
-		return 1;
+		return DFP_DEVICE_RELOAD;
 	}
 	if (verbose)
 		fprintf(stderr, "renaming %s->%s failed\n", tmp, name);
 out:
 	free(uuid);
 	free(tmp);
-	return r;
+	return DFP_DEVICE_CREATE;
 }
 
 char *nondm_create_uuid(dev_t devt)
