@@ -1,8 +1,41 @@
 # multipath-tools Release Notes
 
+## multipath-tools 0.10.7, 2026/07
+
+### User-visible changes
+
+* Fix ALUA asymmetric access state descriptions in multipathd logs, so that
+  the same terms are used as by the kernel ("lba-dependent", "transitioning").
+* Don't set a hardware handler for bio-based multipath devices. The kernel
+  rejects this anyway.
+
+### Bug fixes
+
+* Fix WWID detection for legacy devices that use the older SCSI-2 VPD page
+  0x83 format for their device identifier.
+* kpartx: Fix an integer overflow in the GPT partition table size calculation.
+  A crafted partition table with an extremely large number of partition entries
+  could trigger the overflow.
+* kpartx: Fix several issues in the DASD partition table reader that could be
+  triggered by a maliciously crafted disk image.
+* Fix duplicate "checker timed out" log messages when `log_checker_err` is
+  set to `once`.
+* Avoid potential buffer overflows in the iet and datacore prioritizers.
+  Commit 4611f97.
+* iet prioritizer: avoid misleading error message with systemd 256 and
+  newer, and properly use udev to derive path parameters.
+  Fixes [#145](https://github.com/opensvc/multipath-tools/issues/145).
+
+### CI
+
+* Update the `test_kpartx` test script, and added it to the
+  `basic-build-and-ci` workflow. Backport from 0.14.2.
+
 ## multipath-tools 0.10.6, 2026/01
 
-**Note:** This release includes a minor change of the libmultipath ABI.
+**Note:** This release includes a minor change of the libmultipath
+ABI. Subsequent releases on the stable-0.10.y branch will track
+ABI changes relative to 0.10.6.
 
 ### Bug fixes
 
