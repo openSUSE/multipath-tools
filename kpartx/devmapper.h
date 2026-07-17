@@ -1,6 +1,8 @@
 #ifndef KPARTX_DEVMAPPER_H_INCLUDED
 #define KPARTX_DEVMAPPER_H_INCLUDED
 
+#include <libdevmapper.h>
+
 #ifdef DM_SUBSYSTEM_UDEV_FLAG0
 #define MPATH_UDEV_RELOAD_FLAG DM_SUBSYSTEM_UDEV_FLAG0
 #else
@@ -18,6 +20,13 @@ dev_t dm_get_first_dep(char *devname);
 char * dm_mapuuid(const char *mapname);
 int dm_devn (const char * mapname, unsigned int *major, unsigned int *minor);
 int dm_remove_partmaps (char * mapname, char *uuid, dev_t devt, int verbose);
+
+enum {
+	DFP_DEVICE_CREATE = DM_DEVICE_CREATE,
+	DFP_DEVICE_RELOAD = DM_DEVICE_RELOAD,
+	DFP_ERR = -1
+};
+
 int dm_find_part(const char *parent, const char *delim, int part,
 		 const char *parent_uuid,
 		 char *name, size_t namesiz, char **part_uuid, int verbose);

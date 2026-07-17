@@ -460,4 +460,15 @@ $KPARTX -d $KPARTX_OPTS "$FILE4"
 # /dev/$loop is _not_ automatically deleted
 [[ -b "/dev/${loop}" ]]
 
+step "test kpartx creation with very long partition separator"
+# Overlong, invalid partition separator
+LONG_SEP="part---01.part---02.part---03.part---04.part---05.part---06.part---07.part---08.part---09.part---10.part---11.part---12.part---13.part---14.part---15.part---16.part---17.part---18.part---19.part---20."
+ERR=0
+# This kpartx command should return with error 1 (for a single partitition!)
+# and print the error message below.
+# Without the fix for overlong partition separator, kpartx crashes.
+$KPARTX -a -p "$LONG_SEP" "$LO1" 2>"$WORKDIR/long_sep.out" || ERR=$?
+[[ $ERR = 1 ]]
+grep -q 'partition name too long for partition 1' "$WORKDIR/long_sep.out"
+
 OK=yes
