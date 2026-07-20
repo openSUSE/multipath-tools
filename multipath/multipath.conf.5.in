@@ -459,7 +459,13 @@ set will always be in their own path group.
 .RS
 .TP
 .I preferredip=...
-(Mandatory) Th preferred IP address, in dotted decimal notation, for iSCSI targets.
+(Mandatory) The preferred IP address, in dotted decimal notation, for iSCSI targets.
+It will be assigned priority 20 (high), while the rest will be assigned priority 10 (low).
+Can be also specified as a comma separated sequence of IP or CIDR, each followed by a
+colon and a priority. CIDR can use standard \fIn.n.n.n/p\fR format or any valid
+shorthand. The "no match" priority defaults to 10, and may be changed with
+CIDR 0/0. Matching follows routing semantics (more specific wins).
+For example: 10/8:20,10.0.10:30,10.0.10.20:40,192.168/16:10,0/0:5
 .RE
 .TP
 The default is: \fB<unset>\fR
