@@ -1,18 +1,19 @@
-#include <stdlib.h>
-#include <stdbool.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <stdio.h>
-#include <string.h>
-#include <regex.h>
-#include <libudev.h>
-#include "prio.h"
 #include "debug.h"
-#include <unistd.h>
+#include "prio.h"
 #include "structs.h"
+#include "util.h"
 #include <arpa/inet.h>
 #include <errno.h>
+#include <libudev.h>
 #include <limits.h>
+#include <regex.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 //
 // This prioritizer allows path selection based on target's IP address
