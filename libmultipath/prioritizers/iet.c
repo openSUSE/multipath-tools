@@ -16,7 +16,7 @@
 #include <unistd.h>
 
 //
-// This prioritizer allows path selection based on target's IP address
+// This prioritizer allows path selection based on target's IP address.
 //
 // (It's a bit of a misnomer since supports the client side [eg. open-iscsi]
 //  instead of just "iet".)
@@ -37,7 +37,7 @@
 // Matching follows network routing semantics (more specific match wins)
 //
 // by Olivier Lambert <lambert.olivier.gmail.com>
-// ippriorities added by Arnaldo Viegas de Lima (arnaldo.viegasdelima.com)
+// Multiple priorities added by Arnaldo Viegas de Lima (arnaldo.viegasdelima.com)
 //
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
@@ -125,9 +125,10 @@ static int parse_cidr(const char *s, uint32_t *network, uint32_t *mask)
 	char *endptr;
 	long val;
 	int prefix;
-	struct in_addr addr;
-	char expanded[32];
-	unsigned int o1 = 0, o2 = 0, o3 = 0, o4 = 0;
+	// struct in_addr addr;
+	// char expanded[32];
+	unsigned int o[4] = { 0 };
+	char extra;
 	int count;
 
 	strlcpy(ipstr, s, sizeof(ipstr));
@@ -152,28 +153,13 @@ static int parse_cidr(const char *s, uint32_t *network, uint32_t *mask)
 		prefix = 32;
 	}
 
-	count = sscanf(ipstr, "%u.%u.%u.%u", &o1, &o2, &o3, &o4);
-	switch (count) {
-	case 1:
-		snprintf(expanded, sizeof(expanded), "%u.0.0.0", o1);
-		break;
-	case 2:
-		snprintf(expanded, sizeof(expanded), "%u.%u.0.0", o1, o2);
-		break;
-	case 3:
-		snprintf(expanded, sizeof(expanded), "%u.%u.%u.0", o1, o2, o3);
-		break;
-	case 4:
-		snprintf(expanded, sizeof(expanded), "%u.%u.%u.%u", o1, o2, o3, o4);
-		break;
-	default:
+	count = sscanf(ipstr, "%u.%u.%u.%u%c", &o[0], &o[1], &o[2], &o[3], &extra);
+	if (count < 1 || count > 4 || o[0] > 255 || o[1] > 255 || o[2] > 255 ||
+	    o[3] > 255)
 		return -1;
-	}
 
-	if (inet_pton(AF_INET, expanded, &addr) != 1)
-		return -1;
 	*mask = prefix_to_mask(prefix);
-	*network = ntohl(addr.s_addr) & *mask;
+	*network = ((o[0] << 24) | (o[1] << 16) | (o[2] << 8) | o[3]) & *mask;
 
 	return 0;
 }
@@ -300,8 +286,9 @@ static int find_priority(const char *sysname, const char *ipstr,
 {
 	struct ipprio_entry *e;
 	struct in_addr addr;
-	struct in_addr netaddr;
-	struct in_addr maskaddr;
+	struct in_addr netaddr = { 0 };
+	struct in_addr maskaddr = { 0 };
+
 	uint32_t ip;
 	int best_prio = DEFAULT_PRIORITY;
 	int best_prefix = -1;
@@ -326,17 +313,19 @@ static int find_priority(const char *sysname, const char *ipstr,
 
 		int prefix = __builtin_popcount(e->mask);
 
-		netaddr.s_addr = htonl(e->network);
-		maskaddr.s_addr = htonl(e->mask);
-
 		if ((ip & e->mask) == e->network) {
 
+			if (libmp_verbosity > 3) {
+				netaddr.s_addr = htonl(e->network);
+				maskaddr.s_addr = htonl(e->mask);
+				inet_ntop(AF_INET, &netaddr, net_buf,
+					  sizeof(net_buf));
+				inet_ntop(AF_INET, &maskaddr, mask_buf,
+					  sizeof(mask_buf));
+			}
+
 			dc_log(4, "find_priority: match ip=%s network=%s mask=%s priority=%d",
-			       ipstr,
-			       inet_ntop(AF_INET, &netaddr, net_buf, sizeof(net_buf)),
-			       inet_ntop(AF_INET, &maskaddr, mask_buf,
-					 sizeof(mask_buf)),
-			       e->priority);
+			       ipstr, net_buf, mask_buf, e->priority);
 
 			if (prefix > best_prefix) {
 				best_prefix = prefix;
@@ -352,10 +341,7 @@ static int find_priority(const char *sysname, const char *ipstr,
 		} else {
 
 			dc_log(4, "find_priority: no match ip=%s network=%s mask=%s",
-			       ipstr,
-			       inet_ntop(AF_INET, &netaddr, net_buf, sizeof(net_buf)),
-			       inet_ntop(AF_INET, &maskaddr, mask_buf,
-					 sizeof(mask_buf)));
+			       ipstr, net_buf, mask_buf);
 		}
 	}
 
