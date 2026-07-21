@@ -577,10 +577,11 @@ main(int argc, char **argv){
 
 			for (j = MAXSLICES-1; j >= 0; j--) {
 				char *part_uuid = NULL, *reason;
-				int res = dm_find_part(mapname, delim, j + 1, uuid,
-						       partname, sizeof(partname),
-						       &part_uuid, verbose);
-				if (slices[j].size || res != DFP_DEVICE_RELOAD)
+
+				if (slices[j].size ||
+				    dm_find_part(mapname, delim, j + 1, uuid, partname,
+						 sizeof(partname), &part_uuid,
+						 verbose) != DFP_DEVICE_RELOAD)
 					continue;
 
 				if (part_uuid && uuid) {
