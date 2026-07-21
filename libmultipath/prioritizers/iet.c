@@ -46,6 +46,9 @@
 #define dc_log(prio, fmt, ...) condlog(prio, "%s " fmt, sysname, ##__VA_ARGS__)
 #endif
 
+#define DEFAULT_PRIORITY 10
+#define DEFAULT_HIGH_PRIORITY 20
+
 //
 // Entry for the CIDR to priority list
 struct ipprio_entry {
@@ -54,9 +57,6 @@ struct ipprio_entry {
 	int priority;
 	struct ipprio_entry *next;
 };
-
-static int default_priority = 10;
-#define DEFAULT_HIGH_PRIORITY 20
 
 //
 // name: find_regex
@@ -88,8 +88,8 @@ char *find_regex(const char *string, const char *regex)
 				result = malloc(sizeof(*result) * (size + 1));
 
 				if (result) {
-					strncpy(result, &string[start], size);
-					result[size] = '\0';
+					strlcpy(result, &string[start], size + 1);
+					;
 					free(pmatch);
 					return result;
 				}
@@ -130,8 +130,7 @@ static int parse_cidr(const char *s, uint32_t *network, uint32_t *mask)
 	unsigned int o1 = 0, o2 = 0, o3 = 0, o4 = 0;
 	int count;
 
-	strncpy(ipstr, s, sizeof(ipstr) - 1);
-	ipstr[sizeof(ipstr) - 1] = '\0';
+	strlcpy(ipstr, s, sizeof(ipstr));
 
 	slash = strchr(ipstr, '/');
 
@@ -197,79 +196,94 @@ static void free_ipprio_list(struct ipprio_entry *list)
 // name: parse_ippriorities
 // @param args: full prio_args string
 // @return: 0 if ok -1 if not
-static struct ipprio_entry *parse_ippriorities(const char *args, int *default_priority)
+static struct ipprio_entry *parse_ippriorities(const char *args)
 {
-	char *buf;
-	char *tok;
-	char *saveptr = NULL;
+	char *buf, *entry, *saveptr = NULL;
 	struct ipprio_entry *ipprio_list = NULL;
+	bool not_first = false;
 
-	buf = strdup(args + 13); /* skip "ippriorities=" */
+	if (!args || strncmp(args, "preferredip=", 11) != 0)
+		return NULL;
+
+	buf = strdup(args + 12);
 	if (!buf)
 		return NULL;
 
-	tok = strtok_r(buf, " \t", &saveptr);
+	entry = strtok_r(buf, ",", &saveptr);
 
-	while (tok) {
+	while (entry) {
+		char *colon;
+		char *cidr;
+		char *prio_str;
+		char *endptr;
 		uint32_t network = 0;
 		uint32_t mask = 0;
-		int priority;
-		bool is_default;
-		struct ipprio_entry *e;
-		char *endptr;
 		long val;
+		int priority;
+		struct ipprio_entry *e;
 
-		is_default = (strcmp(tok, "*") == 0);
+		/* A single IP without CIDR mask and priority attain backward compatibility
+     */
+		colon = strrchr(entry, ':');
 
-		if (!is_default) {
-			if (parse_cidr(tok, &network, &mask) != 0) {
+		if (!colon) {
+			if (not_first || strchr(entry, '/') != NULL ||
+			    strtok_r(NULL, ",", &saveptr) != NULL) {
 				free(buf);
 				free_ipprio_list(ipprio_list);
 				return NULL;
 			}
-		}
 
-		if (network == 0) { // Like default route
-			mask = 0;
-		}
-
-		tok = strtok_r(NULL, " \t", &saveptr);
-
-		if (!tok) {
-			free(buf);
-			free_ipprio_list(ipprio_list);
-			return NULL;
-		}
-
-		errno = 0;
-		val = strtol(tok, &endptr, 10);
-
-		if (errno != 0 || endptr == tok || *endptr != '\0' ||
-		    val <= 0 || val > INT_MAX) {
-			free(buf);
-			free_ipprio_list(ipprio_list);
-			return NULL;
-		}
-
-		priority = (int)val;
-
-		if (is_default) {
-			*default_priority = priority;
+			cidr = entry;
+			priority = 20;
+			entry = NULL; /* consume the only entry */
 		} else {
-			e = calloc(1, sizeof(*e));
-			if (!e) {
+			*colon = '\0';
+			cidr = entry;
+			prio_str = colon + 1;
+
+			if (*cidr == '\0' || *prio_str == '\0') {
 				free(buf);
 				free_ipprio_list(ipprio_list);
 				return NULL;
 			}
-			e->network = network;
-			e->mask = mask;
-			e->priority = priority;
-			e->next = ipprio_list;
-			ipprio_list = e;
+
+			errno = 0;
+			val = strtol(prio_str, &endptr, 10);
+
+			if (errno != 0 || endptr == prio_str ||
+			    *endptr != '\0' || val <= 0 || val > INT_MAX) {
+				free(buf);
+				free_ipprio_list(ipprio_list);
+				return NULL;
+			}
+
+			priority = (int)val;
 		}
 
-		tok = strtok_r(NULL, " \t", &saveptr);
+		if (parse_cidr(cidr, &network, &mask) != 0) {
+			free(buf);
+			free_ipprio_list(ipprio_list);
+			return NULL;
+		}
+
+		e = calloc(1, sizeof(*e));
+		if (!e) {
+			free(buf);
+			free_ipprio_list(ipprio_list);
+			return NULL;
+		}
+
+		e->network = network;
+		e->mask = mask;
+		e->priority = priority;
+		e->next = ipprio_list;
+		ipprio_list = e;
+
+		not_first = true;
+
+		if (entry)
+			entry = strtok_r(NULL, ",", &saveptr);
 	}
 
 	free(buf);
@@ -280,29 +294,28 @@ static struct ipprio_entry *parse_ippriorities(const char *args, int *default_pr
 // name: find_priority - lookup IP in list of CIDRs
 // @param ipstr: IP to lookup as a string
 // @param ipprio_list: list of CIDR blocks for the search
-// @param default_priority: default (not found) priority
 // @return: priority
 static int find_priority(const char *sysname, const char *ipstr,
-			 struct ipprio_entry *ipprio_list, int default_priority)
+			 struct ipprio_entry *ipprio_list)
 {
 	struct ipprio_entry *e;
 	struct in_addr addr;
 	struct in_addr netaddr;
 	struct in_addr maskaddr;
 	uint32_t ip;
-	int best_prio = default_priority;
+	int best_prio = DEFAULT_PRIORITY;
 	int best_prefix = -1;
 
 	if (!ipstr) {
 		dc_log(3, "find_priority: NULL IP, returning default=%d",
-		       default_priority);
-		return default_priority;
+		       DEFAULT_PRIORITY);
+		return DEFAULT_PRIORITY;
 	}
 
 	if (inet_pton(AF_INET, ipstr, &addr) != 1) {
 		dc_log(3, "find_priority: invalid IP '%s', returning default=%d",
-		       ipstr, default_priority);
-		return default_priority;
+		       ipstr, DEFAULT_PRIORITY);
+		return DEFAULT_PRIORITY;
 	}
 
 	ip = ntohl(addr.s_addr);
@@ -318,7 +331,7 @@ static int find_priority(const char *sysname, const char *ipstr,
 
 		if ((ip & e->mask) == e->network) {
 
-			dc_log(3, "find_priority: match ip=%s network=%s mask=%s for priority=%d",
+			dc_log(4, "find_priority: match ip=%s network=%s mask=%s priority=%d",
 			       ipstr,
 			       inet_ntop(AF_INET, &netaddr, net_buf, sizeof(net_buf)),
 			       inet_ntop(AF_INET, &maskaddr, mask_buf,
@@ -329,15 +342,16 @@ static int find_priority(const char *sysname, const char *ipstr,
 				best_prefix = prefix;
 				best_prio = e->priority;
 
-				dc_log(3, "find_priority: selected priority=%d for ip=%s",
+				dc_log(4, "find_priority: selected priority=%d for ip=%s",
 				       best_prio, ipstr);
 			}
+
 			if (prefix == 32)
 				break;
 
 		} else {
 
-			dc_log(3, "find_priority: no match ip=%s network=%s mask=%s",
+			dc_log(4, "find_priority: no match ip=%s network=%s mask=%s",
 			       ipstr,
 			       inet_ntop(AF_INET, &netaddr, net_buf, sizeof(net_buf)),
 			       inet_ntop(AF_INET, &maskaddr, mask_buf,
@@ -345,7 +359,7 @@ static int find_priority(const char *sysname, const char *ipstr,
 		}
 	}
 
-	dc_log(3, "find_priority: final priority for %s is %d", ipstr, best_prio);
+	dc_log(4, "find_priority: final priority for %s is %d", ipstr, best_prio);
 
 	return best_prio;
 }
@@ -384,32 +398,7 @@ int iet_prio(struct udev_device *udev, char *args)
 	// check args format and initialize list of CIDR/IPs
 	if (sscanf(args, "preferredip=%255s", preferredip) == 1) {
 
-		struct in_addr addr;
-		struct ipprio_entry *e;
-		if (inet_pton(AF_INET, preferredip, &addr) != 1) {
-			if (!arg_logged) {
-				dc_log(2, "prio args: invalid preferredip");
-				arg_logged = true;
-			}
-			return 0;
-		}
-		e = calloc(1, sizeof(*e));
-		if (!e) {
-			if (!arg_logged) {
-				dc_log(2, "out of memory");
-				arg_logged = true;
-			}
-			return 0;
-		}
-		e->network = ntohl(addr.s_addr);
-		e->mask = 0xffffffffU;		     /* /32 */
-		e->priority = DEFAULT_HIGH_PRIORITY; /* Set to high */
-		e->next = NULL;
-		ipprio_list = e;
-
-	} else if (strncmp(args, "ippriorities=", 13) == 0) {
-		/* ippriorities=... */
-		ipprio_list = parse_ippriorities(args, &default_priority);
+		ipprio_list = parse_ippriorities(args);
 		if (!ipprio_list) {
 			if (!arg_logged) {
 				dc_log(2, "invalid prio_args ippriorities");
@@ -419,7 +408,7 @@ int iet_prio(struct udev_device *udev, char *args)
 		}
 
 	} else {
-		/* bad prio_args... */
+
 		if (!arg_logged) {
 			dc_log(2, "unexpected prio_args format");
 			arg_logged = true;
@@ -438,9 +427,9 @@ int iet_prio(struct udev_device *udev, char *args)
 			"([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})");
 
 	if (ip) {
-		prio = find_priority(sysname, ip, ipprio_list, default_priority);
+		prio = find_priority(sysname, ip, ipprio_list);
 	} else {
-		prio = default_priority;
+		prio = DEFAULT_PRIORITY;
 	}
 
 	free(ip);
