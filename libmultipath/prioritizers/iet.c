@@ -5,9 +5,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <regex.h>
-#include <libudev.h>
 #include "prio.h"
 #include "debug.h"
+#include "mt-udev-wrap.h"
 #include <unistd.h>
 #include "structs.h"
 

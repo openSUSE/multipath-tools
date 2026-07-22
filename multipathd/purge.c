@@ -10,9 +10,9 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
-#include <libudev.h>
 #include <urcu.h>
 
+#include "mt-udev-wrap.h"
 #include "vector.h"
 #include "structs.h"
 #include "structs_vec.h"

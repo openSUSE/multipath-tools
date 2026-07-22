@@ -174,13 +174,6 @@ int async_check_check(struct checker *c, union checker_mpcontext *mpc)
 	if (mpc && !IS_INVALID_MPCONTEXT(*mpc))
 		acc->rdata.mpc = *mpc;
 
-	if (checker_is_sync(c)) {
-		int rc = acc->rdata.afunc(&acc->rdata);
-
-		if (mpc && !IS_INVALID_MPCONTEXT(acc->rdata.mpc))
-			*mpc = acc->rdata.mpc;
-		return rc;
-	}
 	/* Handle the case that the checker just completed */
 	if (acc->rtx)
 		return async_check_pending(c, mpc);
@@ -192,6 +185,15 @@ int async_check_check(struct checker *c, union checker_mpcontext *mpc)
 	acc->rdata.state = PATH_PENDING;
 	acc->rdata.msgid = CHECKER_MSGID_RUNNING;
 	acc->rdata.afunc = c->cls->async_func;
+
+	if (checker_is_sync(c)) {
+		int rc = acc->rdata.afunc(&acc->rdata);
+
+		if (mpc && !IS_INVALID_MPCONTEXT(acc->rdata.mpc))
+			*mpc = acc->rdata.mpc;
+		return rc;
+	}
+
 	condlog(4, "%d:%d : starting checker", major(acc->rdata.devt),
 		minor(acc->rdata.devt));
 	acc->rtx = get_runner(runner_callback, &acc->rdata, rdata_size(acc),

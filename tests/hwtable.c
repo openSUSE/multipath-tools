@@ -247,23 +247,13 @@ static void write_section(FILE *ff, const char *section,
 
 static void write_defaults(const struct hwt_state *hwt)
 {
-	static const char bindings_name[] = "bindings";
 	static struct key_value defaults[] = {
-		{ "config_dir", NULL },
-		{ "bindings_file", NULL },
-		{ "multipath_dir", NULL },
-		{ "detect_prio", "no" },
+		// clang-format off
+		{ "detect_prio",    "no" },
 		{ "detect_checker", "no" },
+		// clang-format on
 	};
-	char buf[sizeof(template) + sizeof(bindings_name)];
-	char dirbuf[PATH_MAX];
 
-	snprintf(buf, sizeof(buf), "%s/%s", hwt->tmpname, bindings_name);
-	defaults[0].value = hwt->dirname;
-	defaults[1].value = buf;
-	assert_ptr_not_equal(getcwd(dirbuf, sizeof(dirbuf)), NULL);
-	strncat(dirbuf, "/lib", sizeof(dirbuf) - 5);
-	defaults[2].value = dirbuf;
 	write_section(hwt->config_file, "defaults",
 		      ARRAY_SIZE(defaults), defaults);
 }
