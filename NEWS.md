@@ -41,7 +41,7 @@ See [README.md](README.md) for additional information.
 * kpartx: Fix several issues in the DASD partition table reader that could be
   triggered by a maliciously crafted disk image. Commits c616a95 ff.
 * Fix duplicate "checker timed out" log messages when `log_checker_err` is
-  set to `once`. Commit 8933b22.
+  set to `once`. Fixes 0.5.0. Commit 8933b22.
 * Avoid potential buffer overflows in the iet and datacore prioritizers.
   Commit 4611f97.
 * iet prioritizer: avoid misleading error message with systemd 256 and
@@ -49,6 +49,13 @@ See [README.md](README.md) for additional information.
   Fixes [#145](https://github.com/opensvc/multipath-tools/issues/145).
 * An overlong partition delimiter (-p option) could cause kpartx to crash.
   Fix it. Commit a2f344a.
+* Even with the libudev wrapper code introduced in 0.14.0, multipathd ran into
+  use-after-free errors in tests where multipathd was restarted frequently.
+  Fix this by preventing thread cancellation during libudev calls.
+  Fixes [#152](https://github.com/opensvc/multipath-tools/issues/152).
+  Commit 47a654f.
+* libmpathpersist: Fix self-preemption without holding a reservation.
+  Fixes 0.13.0. Commit 4260774.
 
 ### Other changes
 
