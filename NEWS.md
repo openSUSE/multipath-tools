@@ -49,6 +49,11 @@ See [README.md](README.md) for additional information.
   Fixes [#145](https://github.com/opensvc/multipath-tools/issues/145).
 * An overlong partition delimiter (-p option) could cause kpartx to crash.
   Fix it. Commit a2f344a.
+* Even with the libudev wrapper code introduced in 0.14.0, multipathd ran into
+  use-after-free errors in tests where multipathd was restarted frequently.
+  Fix this by preventing thread cancellation during libudev calls.
+  Fixes [#152](https://github.com/opensvc/multipath-tools/issues/152).
+  Commit b424465.
 
 ### Other changes
 
