@@ -28,12 +28,14 @@ See [README.md](README.md) for additional information.
 * kpartx: Fix several issues in the DASD partition table reader that could be
   triggered by a maliciously crafted disk image.
 * Fix duplicate "checker timed out" log messages when `log_checker_err` is
-  set to `once`.
+  set to `once`. Fixes 0.5.0.
 * Avoid potential buffer overflows in the iet and datacore prioritizers.
   Commit 4611f97.
 * iet prioritizer: avoid misleading error message with systemd 256 and
   newer, and properly use udev to derive path parameters.
   Fixes [#145](https://github.com/opensvc/multipath-tools/issues/145).
+* libmpathpersist: Fix self-preemption without holding a reservation.
+  Fixes 0.13.0.
 
 ### Other changes
 
