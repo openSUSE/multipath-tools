@@ -86,6 +86,12 @@ enum {
  */
 #define MAX_CLIENTS (16384 - POLLFDS_BASE)
 
+/*
+ * Limit the number of non-root clients to guarantee that there is always
+ * space for root clients
+ */
+#define MAX_NON_ROOT_CLIENTS 256
+
 /* Compile-time error if POLLFD_CHUNK is too small */
 static __attribute__((unused)) char ___a[-(MIN_POLLS <= 0)];
 
@@ -128,7 +134,7 @@ static void dead_client(struct client *c)
 /*
  * handle a new client joining
  */
-static void new_client(int ux_sock)
+static void new_client(int ux_sock, int non_root_clients)
 {
 	struct client *c;
 	struct sockaddr addr;
@@ -149,6 +155,10 @@ static void new_client(int ux_sock)
 	c->fd = fd;
 	c->state = CLT_RECV;
 	c->is_root = _socket_client_is_root(c->fd);
+	if (!c->is_root && non_root_clients >= MAX_NON_ROOT_CLIENTS) {
+		dead_client(c);
+		return;
+	}
 
 	/* put it in our linked list */
 	list_add_tail(&c->node, &clients);
@@ -660,13 +670,15 @@ void *uxsock_listen(int n_socks, long *ux_sock_in, void *trigger_data)
 	sigdelset(&mask, SIGUSR1);
 	while (1) {
 		struct client *c, *tmp;
-		int i, n_pfds, poll_count, num_clients;
+		int i, n_pfds, poll_count, num_clients, non_root_clients;
 		struct timespec __timeout, *timeout;
 
 		/* setup for a poll */
-		num_clients = 0;
+		num_clients = non_root_clients = 0;
 		list_for_each_entry(c, &clients, node) {
 			num_clients++;
+			if (!c->is_root)
+				non_root_clients++;
 		}
 		if (num_clients + POLLFDS_BASE > max_pfds) {
 			struct pollfd *new;
@@ -770,6 +782,8 @@ void *uxsock_listen(int n_socks, long *ux_sock_in, void *trigger_data)
 
 			if (c->error == -ECONNRESET) {
 				condlog(4, "cli[%d]: disconnected", c->fd);
+				if (!c->is_root)
+					non_root_clients--;
 				dead_client(c);
 				if (i < n_pfds)
 					polls[i].fd = -1;
@@ -780,10 +794,10 @@ void *uxsock_listen(int n_socks, long *ux_sock_in, void *trigger_data)
 
 		/* see if we got a new client */
 		if (polls[POLLFD_UX1].revents & POLLIN) {
-			new_client(ux_sock[0]);
+			new_client(ux_sock[0], non_root_clients);
 		}
 		if (polls[POLLFD_UX2].revents & POLLIN) {
-			new_client(ux_sock[1]);
+			new_client(ux_sock[1], non_root_clients);
 		}
 
 		/* handle inotify events on config files */
