@@ -70,6 +70,19 @@ static bool _socket_client_is_root(int fd)
 }
 
 /*
+ * kill off a dead client
+ */
+static void dead_client(struct client *c)
+{
+	pthread_mutex_lock(&client_lock);
+	list_del_init(&c->node);
+	pthread_mutex_unlock(&client_lock);
+	close(c->fd);
+	c->fd = -1;
+	FREE(c);
+}
+
+/*
  * handle a new client joining
  */
 static void new_client(int ux_sock)
@@ -97,19 +110,6 @@ static void new_client(int ux_sock)
 	pthread_mutex_lock(&client_lock);
 	list_add_tail(&c->node, &clients);
 	pthread_mutex_unlock(&client_lock);
-}
-
-/*
- * kill off a dead client
- */
-static void dead_client(struct client *c)
-{
-	pthread_mutex_lock(&client_lock);
-	list_del_init(&c->node);
-	pthread_mutex_unlock(&client_lock);
-	close(c->fd);
-	c->fd = -1;
-	FREE(c);
 }
 
 void free_polls (void)
