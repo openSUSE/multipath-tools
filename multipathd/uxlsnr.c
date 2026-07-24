@@ -110,6 +110,21 @@ static bool _socket_client_is_root(int fd)
 }
 
 /*
+ * kill off a dead client
+ */
+static void dead_client(struct client *c)
+{
+	int fd = c->fd;
+	list_del_init(&c->node);
+	c->fd = -1;
+	reset_strbuf(&c->reply);
+	if (c->cmdvec)
+		free_keys(c->cmdvec);
+	free(c);
+	close(fd);
+}
+
+/*
  * handle a new client joining
  */
 static void new_client(int ux_sock)
@@ -136,21 +151,6 @@ static void new_client(int ux_sock)
 
 	/* put it in our linked list */
 	list_add_tail(&c->node, &clients);
-}
-
-/*
- * kill off a dead client
- */
-static void dead_client(struct client *c)
-{
-	int fd = c->fd;
-	list_del_init(&c->node);
-	c->fd = -1;
-	reset_strbuf(&c->reply);
-	if (c->cmdvec)
-		free_keys(c->cmdvec);
-	free(c);
-	close(fd);
 }
 
 static void free_polls (void)
