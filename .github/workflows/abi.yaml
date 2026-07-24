@@ -14,6 +14,11 @@ on:
       - master
       - queue
   workflow_dispatch:
+  # GitHub workflow artifacts expire every 90 days.
+  # Re-run this workflow every 2 months to make sure that we always
+  # have a reference ABI to compare.
+  schedule:
+    - cron: "27 5 10 2,4,6,8,10,12 *"
 env:
   ABI_BRANCH: ${{ secrets.ABI_BRANCH }}
 
