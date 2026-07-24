@@ -21,7 +21,7 @@ jobs:
         run: >
           echo ${{ github.ref }} |
           sed -E 's,refs/heads/stable-([0-9]\.[0-9]*)\.y,PARENT_TAG=\1.0,' >> $GITHUB_ENV
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
       - name: get parent tag (PR)
         run: >
           echo ${{ github.base_ref }} |
@@ -75,7 +75,7 @@ jobs:
         run: >
           echo ${{ github.ref }} |
           sed -E 's,refs/heads/stable-([0-9]\.[0-9]*)\.y,PARENT_TAG=\1.0,' >> $GITHUB_ENV
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
       - name: get parent tag (PR)
         run: >
           echo ${{ github.base_ref }} |
