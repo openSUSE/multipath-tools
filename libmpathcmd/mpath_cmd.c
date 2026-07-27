@@ -36,7 +36,7 @@ static ssize_t read_all(int fd, void *buf, size_t len, unsigned int timeout)
 			continue;
 		n = recv(fd, buf, len, 0);
 		if (n < 0) {
-			if ((errno == EINTR) || (errno == EAGAIN))
+			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
 				continue;
 			return -1;
 		}
@@ -59,7 +59,7 @@ static size_t write_all(int fd, const void *buf, size_t len)
 	while (len) {
 		ssize_t n = send(fd, buf, len, MSG_NOSIGNAL);
 		if (n < 0) {
-			if ((errno == EINTR) || (errno == EAGAIN))
+			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
 				continue;
 			return total;
 		}

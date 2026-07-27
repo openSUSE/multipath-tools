@@ -95,7 +95,7 @@ static void new_client(int ux_sock, int non_root_clients)
 	socklen_t len = sizeof(addr);
 	int fd;
 
-	fd = accept(ux_sock, &addr, &len);
+	fd = accept4(ux_sock, &addr, &len, SOCK_NONBLOCK);
 
 	if (fd == -1)
 		return;
