@@ -139,7 +139,7 @@ static void new_client(int ux_sock, int non_root_clients)
 	socklen_t len = sizeof(addr);
 	int fd;
 
-	fd = accept(ux_sock, &addr, &len);
+	fd = accept4(ux_sock, &addr, &len, SOCK_NONBLOCK);
 
 	if (fd == -1)
 		return;
@@ -478,7 +478,8 @@ static int client_state_machine(struct client *c, struct vectors *vecs,
 			return STM_BREAK;
 		} else if (c->len < c->cmd_len) {
 			n = recv(c->fd, c->cmd + c->len, c->cmd_len - c->len, 0);
-			if (n <= 0 && errno != EINTR && errno != EAGAIN) {
+			if (n <= 0 && errno != EINTR && errno != EWOULDBLOCK &&
+			    errno != EAGAIN) {
 				condlog(1, "%s: cli[%d]: error in recv: %m",
 					__func__, c->fd);
 				c->error = -ECONNRESET;
@@ -556,7 +557,8 @@ static int client_state_machine(struct client *c, struct vectors *vecs,
 
 			n = send(c->fd, buf + c->len, c->cmd_len - c->len, MSG_NOSIGNAL);
 			if (n == -1) {
-				if (!(errno == EAGAIN || errno == EINTR))
+				if (!(errno == EAGAIN ||
+				      errno == EWOULDBLOCK || errno == EINTR))
 					c->error = -ECONNRESET;
 			} else
 				c->len += n;
