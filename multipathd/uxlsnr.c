@@ -536,6 +536,8 @@ static int client_state_machine(struct client *c, struct vectors *vecs,
 		return STM_BREAK;
 
 	case CLT_SEND:
+		if (!(revents & POLLOUT))
+			return STM_BREAK;
 		if (get_strbuf_len(&c->reply) == 0)
 			default_reply(c, c->error);
 
