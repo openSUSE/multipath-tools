@@ -16,8 +16,10 @@ ConditionVirtualization=!container
 [Service]
 Type=notify
 NotifyAccess=main
+NonBlocking=true
 ExecStart=/sbin/multipathd -d -s
 ExecReload=/sbin/multipathd reconfigure
+Restart=on-failure
 TasksMax=infinity
 
 [Install]
