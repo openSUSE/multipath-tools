@@ -52,7 +52,7 @@ int ux_socket_listen(const char *name)
 	if (name[0] != '@' && unlink(name) == -1 && errno != ENOENT)
 		condlog(1, "Failed to unlink %s", name);
 
-	fd = socket(AF_LOCAL, SOCK_STREAM, 0);
+	fd = socket(AF_LOCAL, SOCK_STREAM | SOCK_NONBLOCK, 0);
 	if (fd == -1) {
 		condlog(3, "Couldn't create ux_socket, error %d", errno);
 		return -1;
