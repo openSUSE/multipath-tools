@@ -193,50 +193,6 @@ struct vpd83_data {
 
 #define VPD_BUFLEN 4096
 
-/* Returns the max byte offset in the VPD page from the start of the page */
-static inline unsigned int vpd83_max_offs(const struct vpd83_data *p)
-{
-	uint16_t len = get_unaligned_be16(p->length) + 4;
-
-	return len <= VPD_BUFLEN ? len : VPD_BUFLEN;
-}
-
-static inline bool
-vpd83_descr_fits(const struct vpd83_dscr *d, const struct vpd83_data *p)
-{
-	ptrdiff_t max_offs = vpd83_max_offs(p);
-	ptrdiff_t offs = ((const char *)d - (const char *)p);
-
-	/* make sure we can read d->length */
-	if (offs < 0 || offs > max_offs - 4)
-		return false;
-
-	offs += d->length + 4;
-	return offs <= max_offs;
-}
-
-static inline const struct vpd83_dscr *
-vpd83_next_dscr(const struct vpd83_dscr *d, const struct vpd83_data *p)
-{
-	ptrdiff_t offs = ((const char *)d - (const char *)p) + d->length + 4;
-
-	return (const struct vpd83_dscr *)((const char *)p + offs);
-}
-
-/*-----------------------------------------------------------------------------
- * This macro should be used to walk through all identification descriptors
- * defined in the code page 0x83.
- * The argument p is a pointer to the code page 0x83 data and d is used to
- * point to the current descriptor.
- *-----------------------------------------------------------------------------
- */
-#define FOR_EACH_VPD83_DSCR(p, d) \
-		for( \
-			d = p->data;		  \
-			vpd83_descr_fits(d, p);	  \
-			d = vpd83_next_dscr(d, p) \
-		)
-
 /*=============================================================================
  * The following structures and macros are used to call the report target port
  * groups command defined in SPC-3.
