@@ -151,9 +151,12 @@ do_inquiry(int fd, int evpd, unsigned int codepage,
 		PRINT_DEBUG("do_inquiry: SCSI error!\n");
 		return -RTPG_INQUIRY_FAILED;
 	}
+	if (hdr.resid < 0 || (unsigned int)hdr.resid > hdr.dxfer_len)
+		/* resid failed sanity check*/
+		return -RTPG_RTPG_FAILED;
 	PRINT_HEX((unsigned char *) resp, resplen);
 
-	return 0;
+	return (int)hdr.dxfer_len - hdr.resid;
 }
 
 /*
@@ -168,23 +171,21 @@ get_target_port_group_support(int fd, unsigned int timeout)
 
 	memset((unsigned char *)&inq, 0, sizeof(inq));
 	rc = do_inquiry(fd, 0, 0x00, &inq, sizeof(inq), timeout);
-	if (!rc) {
-		rc = inquiry_data_get_tpgs(&inq);
-	}
-
-	return rc;
+	if (rc > (int)offsetof(struct inquiry_data, b5))
+		return inquiry_data_get_tpgs(&inq);
+	else
+		return -RTPG_INQUIRY_FAILED;
 }
 
 int
 get_target_port_group(struct path * pp, unsigned int timeout)
 {
-	unsigned char		*buf;
-	struct vpd83_data *	vpd83;
+	unsigned char *buf;
 	struct vpd83_dscr *	dscr;
-	int			rc;
+	int rc, data_len;
 	int			buflen, scsi_buflen;
 
-	buflen = 4096;
+	buflen = VPD_BUFLEN;
 	buf = (unsigned char *)malloc(buflen);
 	if (!buf) {
 		PRINT_DEBUG("malloc failed: could not allocate"
@@ -197,11 +198,15 @@ get_target_port_group(struct path * pp, unsigned int timeout)
 	if (rc < 0)
 		goto out;
 
+	if (rc < 4) {
+		PRINT_DEBUG("do_inquiry only returned %d bytes", rc);
+		rc = -RTPG_RTPG_FAILED;
+		goto out;
+	}
 	scsi_buflen = (buf[2] << 8 | buf[3]) + 4;
-	/* Paranoia */
-	if (scsi_buflen >= USHRT_MAX)
-		scsi_buflen = USHRT_MAX;
-	if (buflen < scsi_buflen) {
+	if (scsi_buflen > VPD_BUFLEN)
+		scsi_buflen = VPD_BUFLEN;
+	if (rc < scsi_buflen) {
 		free(buf);
 		buf = (unsigned char *)malloc(scsi_buflen);
 		if (!buf) {
@@ -216,14 +221,27 @@ get_target_port_group(struct path * pp, unsigned int timeout)
 			goto out;
 	}
 
-	vpd83 = (struct vpd83_data *) buf;
+	data_len = rc;
+	if (data_len < scsi_buflen)
+		PRINT_DEBUG("inquiry data trucated. Read %d of %d bytes",
+			    data_len, scsi_buflen);
 	rc = -RTPG_NO_TPG_IDENTIFIER;
-	FOR_EACH_VPD83_DSCR(vpd83, dscr) {
+	for (dscr = (struct vpd83_dscr *)&buf[4];
+	     (const unsigned char *)(dscr + 1) <= buf + data_len &&
+	     dscr->data + dscr->length <= buf + data_len;
+	     dscr = (struct vpd83_dscr *)(dscr->data + dscr->length)) {
 		if (vpd83_dscr_istype(dscr, IDTYPE_TARGET_PORT_GROUP)) {
 			struct vpd83_tpg_dscr *p;
 			if (rc != -RTPG_NO_TPG_IDENTIFIER) {
 				PRINT_DEBUG("get_target_port_group: more "
 					    "than one TPG identifier found!\n");
+				continue;
+			}
+			if (dscr->length < sizeof(struct vpd83_tpg_dscr)) {
+				PRINT_DEBUG("%s: descr->length too small. "
+					    "got %u. need %zu",
+					    __func__, dscr->length,
+					    sizeof(struct vpd83_tpg_dscr));
 				continue;
 			}
 			p  = (struct vpd83_tpg_dscr *)dscr->data;
@@ -290,7 +308,7 @@ get_asymmetric_access_state(int fd, unsigned int tpg, unsigned int timeout)
 	unsigned int buflen, data_len;
 	uint64_t		scsi_buflen;
 
-	buflen = 4096;
+	buflen = VPD_BUFLEN;
 	buf = (unsigned char *)malloc(buflen);
 	if (!buf) {
 		PRINT_DEBUG ("malloc failed: could not allocate"
