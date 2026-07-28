@@ -9,28 +9,12 @@
 
 #include "debug.h"
 #include "checkers.h"
+#include "async_checker.h"
 #include "vector.h"
 #include "util.h"
+#include "structs.h"
 
 static const char * const checker_dir = MULTIPATH_DIR;
-
-struct checker_class {
-	struct list_head node;
-	void *handle;
-	int refcount;
-	int sync;
-	char name[CHECKER_NAME_LEN];
-	int (*check)(struct checker *);
-	int (*init)(struct checker *);       /* to allocate the context */
-	int (*mp_init)(struct checker *);    /* to allocate the mpcontext */
-	void (*free)(struct checker *);      /* to free the context */
-	void (*reset)(void);		     /* to reset the global variables */
-	void *(*thread)(void *);	     /* async thread entry point */
-	int (*pending)(struct checker *);    /* to recheck pending paths */
-	bool (*need_wait)(struct checker *); /* checker needs waiting for */
-	const char **msgtable;
-	short msgtable_size;
-};
 
 static const char *checker_state_names[PATH_MAX_STATE] = {
 	[PATH_WILD] = "wild",
@@ -57,41 +41,11 @@ const char *checker_state_name(int i)
 	return checker_state_names[i];
 }
 
-static struct checker_class *alloc_checker_class(void)
+static void free_checker_class(void *ptr)
 {
-	struct checker_class *c;
-
-	c = calloc(1, sizeof(struct checker_class));
-	if (c) {
-		INIT_LIST_HEAD(&c->node);
-		uatomic_set(&c->refcount, 1);
-	}
-	return c;
-}
-
-/* Use uatomic_{sub,add}_return() to ensure proper memory barriers */
-static int checker_class_ref(struct checker_class *cls)
-{
-	return uatomic_add_return(&cls->refcount, 1);
-}
-
-static int checker_class_unref(struct checker_class *cls)
-{
-	return uatomic_sub_return(&cls->refcount, 1);
-}
-
-void free_checker_class(struct checker_class *c)
-{
-	int cnt;
-
+	struct checker_class *c = ptr;
 	if (!c)
 		return;
-	cnt = checker_class_unref(c);
-	if (cnt != 0) {
-		condlog(cnt < 0 ? 1 : 4, "%s checker refcount %d",
-			c->name, cnt);
-		return;
-	}
 	condlog(3, "unloading %s checker", c->name);
 	list_del(&c->node);
 	if (c->reset)
@@ -102,7 +56,18 @@ void free_checker_class(struct checker_class *c)
 				c->name, dlerror());
 		}
 	}
-	free(c);
+}
+
+static struct checker_class *alloc_checker_class(void)
+{
+	struct checker_class *c;
+
+	c = alloc_shared_ptr(sizeof(*c), free_checker_class);
+	if (c) {
+		memset(c, 0, sizeof(*c));
+		INIT_LIST_HEAD(&c->node);
+	}
+	return c;
 }
 
 void cleanup_checkers (void)
@@ -110,9 +75,8 @@ void cleanup_checkers (void)
 	struct checker_class *checker_loop;
 	struct checker_class *checker_temp;
 
-	list_for_each_entry_safe(checker_loop, checker_temp, &checkers, node) {
-		free_checker_class(checker_loop);
-	}
+	list_for_each_entry_safe(checker_loop, checker_temp, &checkers, node)
+		put_shared_ptr(checker_loop);
 }
 
 static struct checker_class *checker_class_lookup(const char *name)
@@ -136,6 +100,18 @@ void reset_checker_classes(void)
 		if (c->reset)
 			c->reset();
 	}
+}
+
+static struct checker_class *add_async_checker_class(struct checker_class *c)
+{
+	c->init = async_check_init;
+	c->check = async_check_check;
+	c->need_wait = async_check_need_wait;
+	c->pending = async_check_pending;
+	c->free = async_check_free;
+
+	list_add(&c->node, &checkers);
+	return c;
 }
 
 static struct checker_class *add_checker_class(const char *name)
@@ -166,35 +142,6 @@ static struct checker_class *add_checker_class(const char *name)
 				errstr);
 		goto out;
 	}
-	c->check = (int (*)(struct checker *)) dlsym(c->handle, "libcheck_check");
-	errstr = dlerror();
-	if (errstr != NULL)
-		condlog(0, "A dynamic linking error occurred: (%s)", errstr);
-	if (!c->check)
-		goto out;
-
-	c->init = (int (*)(struct checker *)) dlsym(c->handle, "libcheck_init");
-	errstr = dlerror();
-	if (errstr != NULL)
-		condlog(0, "A dynamic linking error occurred: (%s)", errstr);
-	if (!c->init)
-		goto out;
-
-	c->mp_init = (int (*)(struct checker *)) dlsym(c->handle, "libcheck_mp_init");
-	c->reset = (void (*)(void)) dlsym(c->handle, "libcheck_reset");
-	c->thread = (void *(*)(void*)) dlsym(c->handle, "libcheck_thread");
-	c->pending = (int (*)(struct checker *)) dlsym(c->handle, "libcheck_pending");
-	c->need_wait = (bool (*)(struct checker *)) dlsym(c->handle, "libcheck_need_wait");
-	/* These 5 functions can be NULL. call dlerror() to clear out any
-	 * error string */
-	dlerror();
-
-	c->free = (void (*)(struct checker *)) dlsym(c->handle, "libcheck_free");
-	errstr = dlerror();
-	if (errstr != NULL)
-		condlog(0, "A dynamic linking error occurred: (%s)", errstr);
-	if (!c->free)
-		goto out;
 
 	c->msgtable_size = 0;
 	c->msgtable = dlsym(c->handle, "libcheck_msgtable");
@@ -209,15 +156,51 @@ static struct checker_class *add_checker_class(const char *name)
 		c->msgtable_size = p - c->msgtable;
 	} else
 		c->msgtable_size = 0;
-	condlog(3, "checker %s: message table size = %d",
-		c->name, c->msgtable_size);
+	condlog(3, "checker %s: message table size = %d", c->name,
+		c->msgtable_size);
+
+	c->async_func = (int (*)(struct runner_data *))
+		dlsym(c->handle, "libcheck_async_func");
+	errstr = dlerror();
+	if (c->async_func)
+		return add_async_checker_class(c);
+
+	c->check = (int (*)(struct checker *, union checker_mpcontext *))
+		dlsym(c->handle, "libcheck_check");
+	errstr = dlerror();
+	if (errstr != NULL)
+		condlog(0, "A dynamic linking error occurred: (%s)", errstr);
+	if (!c->check)
+		goto out;
+
+	c->init = (int (*)(struct checker *)) dlsym(c->handle, "libcheck_init");
+	errstr = dlerror();
+	if (errstr != NULL)
+		condlog(0, "A dynamic linking error occurred: (%s)", errstr);
+	if (!c->init)
+		goto out;
+
+	c->reset = (void (*)(void))dlsym(c->handle, "libcheck_reset");
+	c->pending = (int (*)(struct checker *, union checker_mpcontext *))
+		dlsym(c->handle, "libcheck_pending");
+	c->need_wait = (bool (*)(struct checker *)) dlsym(c->handle, "libcheck_need_wait");
+	/* These 5 functions can be NULL. call dlerror() to clear out any
+	 * error string */
+	dlerror();
+
+	c->free = (void (*)(struct checker *)) dlsym(c->handle, "libcheck_free");
+	errstr = dlerror();
+	if (errstr != NULL)
+		condlog(0, "A dynamic linking error occurred: (%s)", errstr);
+	if (!c->free)
+		goto out;
 
 done:
 	c->sync = 1;
 	list_add(&c->node, &checkers);
 	return c;
 out:
-	free_checker_class(c);
+	put_shared_ptr(c);
 	return NULL;
 }
 
@@ -258,31 +241,12 @@ void checker_disable (struct checker * c)
 	c->path_state = PATH_UNCHECKED;
 }
 
-int checker_init (struct checker * c, void ** mpctxt_addr)
+int checker_init(struct checker *c)
 {
 	if (!c || !c->cls)
 		return 1;
-	c->mpcontext = mpctxt_addr;
 	if (c->cls->init && c->cls->init(c) != 0)
 		return 1;
-	if (mpctxt_addr && *mpctxt_addr == NULL && c->cls->mp_init &&
-	    c->cls->mp_init(c) != 0) /* continue even if mp_init fails */
-		c->mpcontext = NULL;
-	return 0;
-}
-
-int checker_mp_init(struct checker * c, void ** mpctxt_addr)
-{
-	if (!c || !c->cls)
-		return 1;
-	if (c->mpcontext || !mpctxt_addr)
-		return 0;
-	c->mpcontext = mpctxt_addr;
-	if (*mpctxt_addr == NULL && c->cls->mp_init &&
-	    c->cls->mp_init(c) != 0) {
-		c->mpcontext = NULL;
-		return 1;
-	}
 	return 0;
 }
 
@@ -303,16 +267,20 @@ void checker_put (struct checker * dst)
 	if (src && src->free)
 		src->free(dst);
 	checker_clear(dst);
-	free_checker_class(src);
+	put_shared_ptr(src);
 }
 
-int checker_get_state(struct checker *c)
+int checker_get_state(struct path *pp)
 {
+	struct checker *c = &pp->checker;
+	union checker_mpcontext *mpc;
+
 	if (!c || !c->cls)
 		return PATH_UNCHECKED;
 	if (c->path_state != PATH_PENDING || !c->cls->pending)
 		return c->path_state;
-	c->path_state = c->cls->pending(c);
+	mpc = pp->mpp ? &pp->mpp->mpcontext : NULL;
+	c->path_state = c->cls->pending(c, mpc);
 	return c->path_state;
 }
 
@@ -324,8 +292,10 @@ bool checker_need_wait(struct checker *c)
 	return c->cls->need_wait(c);
 }
 
-void checker_check (struct checker * c, int path_state)
+void checker_check(struct path *pp, int path_state)
 {
+	struct checker *c = &pp->checker;
+
 	if (!c)
 		return;
 
@@ -339,7 +309,10 @@ void checker_check (struct checker * c, int path_state)
 		c->msgid = CHECKER_MSGID_NO_FD;
 		c->path_state = PATH_WILD;
 	} else {
-		c->path_state = c->cls->check(c);
+		union checker_mpcontext *mpc;
+
+		mpc = pp->mpp ? &pp->mpp->mpcontext : NULL;
+		c->path_state = c->cls->check(c, mpc);
 	}
 }
 
@@ -365,6 +338,8 @@ static const char *generic_msg[CHECKER_GENERIC_MSGTABLE_SIZE] = {
 	[CHECKER_MSGID_GHOST] = " reports path is ghost",
 	[CHECKER_MSGID_UNSUPPORTED] = " doesn't support this device",
 	[CHECKER_MSGID_DISCONNECTED] = " no access to this device",
+	[CHECKER_MSGID_TIMEOUT] = " timed out",
+	[CHECKER_MSGID_RUNNING] = " still running",
 };
 
 const char *checker_message(const struct checker *c)
@@ -385,43 +360,6 @@ const char *checker_message(const struct checker *c)
 
 bad_id:
 	return generic_msg[CHECKER_MSGID_NONE];
-}
-
-static void checker_cleanup_thread(void *arg)
-{
-	struct checker_class *cls = arg;
-
-	free_checker_class(cls);
-	rcu_unregister_thread();
-}
-
-static void *checker_thread_entry(void *arg)
-{
-	struct checker_context *ctx = arg;
-	void *rv;
-
-	rcu_register_thread();
-	pthread_cleanup_push(checker_cleanup_thread, ctx->cls);
-	rv = ctx->cls->thread(ctx);
-	pthread_cleanup_pop(1);
-	return rv;
-}
-
-int start_checker_thread(pthread_t *thread, const pthread_attr_t *attr,
-			 struct checker_context *ctx)
-{
-	int rv;
-
-	assert(ctx && ctx->cls && ctx->cls->thread);
-	/* Take a ref here, lest the class be freed before the thread starts */
-	(void)checker_class_ref(ctx->cls);
-	rv = pthread_create(thread, attr, checker_thread_entry, ctx);
-	if (rv != 0) {
-		condlog(1, "failed to start checker thread for %s: %m",
-			ctx->cls->name);
-		checker_class_unref(ctx->cls);
-	}
-	return rv;
 }
 
 void checker_clear_message (struct checker *c)
@@ -447,7 +385,7 @@ void checker_get(struct checker *dst, const char *name)
 	if (!src)
 		return;
 
-	(void)checker_class_ref(dst->cls);
+	get_shared_ptr(dst->cls);
 }
 
 int init_checkers(void)

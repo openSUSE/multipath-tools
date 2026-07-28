@@ -1,8 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Lars Marowsky-Bree
  */
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -14,6 +12,7 @@
 #include "sg_include.h"
 #include "libsg.h"
 #include "checkers.h"
+#include "async_checker.h"
 #include "debug.h"
 
 #define INQUIRY_CMD     0x12
@@ -32,18 +31,18 @@
  * simple read test would return 02/04/03 instead
  * of 05/25/01 sensekey/ASC/ASCQ data.
  */
-#define	IS_INACTIVE_SNAP(c)   (c->mpcontext ?				   \
-			       ((struct emc_clariion_checker_LU_context *) \
-					(*c->mpcontext))->inactive_snap	   \
-					    : 0)
+#define IS_INACTIVE_SNAP(mpctx)					\
+	(IS_INVALID_MPCONTEXT(mpctx) ? 0 : mpctx.long_val)
 
-#define	SET_INACTIVE_SNAP(c)  if (c->mpcontext)				   \
-				((struct emc_clariion_checker_LU_context *)\
-					(*c->mpcontext))->inactive_snap = 1
+#define SET_INACTIVE_SNAP(mpctx)		\
+	do {					\
+		mpctx.long_val = 1;		\
+	} while (0);
 
-#define	CLR_INACTIVE_SNAP(c)  if (c->mpcontext)				   \
-				((struct emc_clariion_checker_LU_context *)\
-					(*c->mpcontext))->inactive_snap = 0
+#define CLR_INACTIVE_SNAP(mpctx)		\
+	do {					\
+		mpctx.long_val = 0;		\
+	} while (0);
 
 enum {
 	MSG_CLARIION_QUERY_FAILED = CHECKER_FIRST_MSGID,
@@ -83,7 +82,9 @@ struct emc_clariion_checker_LU_context {
 	int inactive_snap;
 };
 
-void hexadecimal_to_ascii(char * wwn, char *wwnstr)
+int libcheck_async_context_size = sizeof(struct emc_clariion_checker_path_context);
+
+static void hexadecimal_to_ascii(char *wwn, char *wwnstr)
 {
 	int i,j, nbl;
 
@@ -96,49 +97,22 @@ void hexadecimal_to_ascii(char * wwn, char *wwnstr)
 	wwnstr[32]=0;
 }
 
-int libcheck_init (struct checker * c)
+int libcheck_async_init(struct runner_data *rdata)
 {
-	/*
-	 * Allocate and initialize the path specific context.
-	 */
-	c->context = calloc(1, sizeof(struct emc_clariion_checker_path_context));
-	if (!c->context)
-		return 1;
-	((struct emc_clariion_checker_path_context *)c->context)->wwn_set = 0;
+	((struct emc_clariion_checker_path_context *)rdata->checker_ctx)->wwn_set = 0;
 
 	return 0;
 }
 
-int libcheck_mp_init (struct checker * c)
-{
-	/*
-	 * Allocate and initialize the multi-path global context.
-	 */
-	if (c->mpcontext && *c->mpcontext == NULL) {
-		void * mpctxt = malloc(sizeof(int));
-		if (!mpctxt)
-			return 1;
-		*c->mpcontext = mpctxt;
-		CLR_INACTIVE_SNAP(c);
-	}
-
-	return 0;
-}
-
-void libcheck_free (struct checker * c)
-{
-	free(c->context);
-}
-
-int libcheck_check (struct checker * c)
+int libcheck_async_func(struct runner_data *rdata)
 {
 	unsigned char sense_buffer[128] = { 0, };
 	unsigned char sb[SENSE_BUFF_LEN] = { 0, }, *sbb;
 	unsigned char inqCmdBlk[INQUIRY_CMDLEN] = {INQUIRY_CMD, 1, 0xC0, 0,
 						sizeof(sense_buffer), 0};
 	struct sg_io_hdr io_hdr;
-	struct emc_clariion_checker_path_context * ct =
-		(struct emc_clariion_checker_path_context *)c->context;
+	struct emc_clariion_checker_path_context *ct =
+		(struct emc_clariion_checker_path_context *)rdata->checker_ctx;
 	char wwnstr[33];
 	int ret;
 	int retry_emc = 5;
@@ -155,14 +129,14 @@ retry:
 	io_hdr.dxferp = sense_buffer;
 	io_hdr.cmdp = inqCmdBlk;
 	io_hdr.sbp = sb;
-	io_hdr.timeout = c->timeout * 1000;
+	io_hdr.timeout = rdata->timeout * 1000;
 	io_hdr.pack_id = 0;
-	if (ioctl(c->fd, SG_IO, &io_hdr) < 0) {
+	if (ioctl(rdata->fd, SG_IO, &io_hdr) < 0) {
 		if (errno == ENOTTY) {
-			c->msgid = CHECKER_MSGID_UNSUPPORTED;
+			rdata->msgid = CHECKER_MSGID_UNSUPPORTED;
 			return PATH_WILD;
 		}
-		c->msgid = MSG_CLARIION_QUERY_FAILED;
+		rdata->msgid = MSG_CLARIION_QUERY_FAILED;
 		return PATH_DOWN;
 	}
 
@@ -194,12 +168,12 @@ retry:
 				sense_key = sbp[2] & 0xf;
 
 			if (sense_key == ILLEGAL_REQUEST) {
-				c->msgid = CHECKER_MSGID_UNSUPPORTED;
+				rdata->msgid = CHECKER_MSGID_UNSUPPORTED;
 				return PATH_WILD;
 			} else if (sense_key != RECOVERED_ERROR) {
 				condlog(1, "emc_clariion_checker: INQUIRY failed with sense key %02x",
 					sense_key);
-				c->msgid = MSG_CLARIION_QUERY_ERROR;
+				rdata->msgid = MSG_CLARIION_QUERY_ERROR;
 				return PATH_DOWN;
 			}
 		}
@@ -208,13 +182,13 @@ retry:
 	if (io_hdr.info & SG_INFO_OK_MASK) {
 		condlog(1, "emc_clariion_checker: INQUIRY failed without sense, status %02x",
 			io_hdr.status);
-		c->msgid = MSG_CLARIION_QUERY_ERROR;
+		rdata->msgid = MSG_CLARIION_QUERY_ERROR;
 		return PATH_DOWN;
 	}
 
 	if (/* Verify the code page - right page & revision */
 	    sense_buffer[1] != 0xc0 || sense_buffer[9] != 0x00) {
-		c->msgid = MSG_CLARIION_UNIT_REPORT;
+		rdata->msgid = MSG_CLARIION_UNIT_REPORT;
 		return PATH_DOWN;
 	}
 
@@ -228,19 +202,19 @@ retry:
 		    ((sense_buffer[28] & 0x07) != 0x06))
 		/* Arraycommpath should be set to 1 */
 		|| (sense_buffer[30] & 0x04) != 0x04) {
-		c->msgid = MSG_CLARIION_PATH_CONFIG;
+		rdata->msgid = MSG_CLARIION_PATH_CONFIG;
 		return PATH_DOWN;
 	}
 
 	if ( /* LUN operations should indicate normal operations */
 		sense_buffer[48] != 0x00) {
-		c->msgid = MSG_CLARIION_PATH_NOT_AVAIL;
+		rdata->msgid = MSG_CLARIION_PATH_NOT_AVAIL;
 		return PATH_SHAKY;
 	}
 
 	if ( /* LUN should at least be bound somewhere and not be LUNZ */
 		sense_buffer[4] == 0x00) {
-		c->msgid = MSG_CLARIION_LUN_UNBOUND;
+		rdata->msgid = MSG_CLARIION_LUN_UNBOUND;
 		return PATH_DOWN;
 	}
 
@@ -251,7 +225,7 @@ retry:
 	 */
 	if (ct->wwn_set) {
 		if (memcmp(ct->wwn, &sense_buffer[10], 16) != 0) {
-			c->msgid = MSG_CLARIION_WWN_CHANGED;
+			rdata->msgid = MSG_CLARIION_WWN_CHANGED;
 			return PATH_DOWN;
 		}
 	} else {
@@ -266,8 +240,8 @@ retry:
 		unsigned char buf[4096];
 
 		memset(buf, 0, 4096);
-		ret = sg_read(c->fd, &buf[0], 4096,
-			      sbb = &sb[0], SENSE_BUFF_LEN, c->timeout);
+		ret = sg_read(rdata->fd, &buf[0], 4096, sbb = &sb[0],
+			      SENSE_BUFF_LEN, rdata->timeout);
 		if (ret == PATH_DOWN) {
 			hexadecimal_to_ascii(ct->wwn, wwnstr);
 
@@ -282,7 +256,7 @@ retry:
 				 * passive paths which will return
 				 * 02/04/03 not 05/25/01 on read.
 				 */
-				SET_INACTIVE_SNAP(c);
+				SET_INACTIVE_SNAP(rdata->mpc);
 				condlog(3, "emc_clariion_checker: Active "
 					"path to inactive snapshot WWN %s.",
 					wwnstr);
@@ -291,26 +265,26 @@ retry:
 					"error for WWN %s.  Sense data are "
 					"0x%x/0x%x/0x%x.", wwnstr,
 					sbb[2]&0xf, sbb[12], sbb[13]);
-				c->msgid = MSG_CLARIION_READ_ERROR;
+				rdata->msgid = MSG_CLARIION_READ_ERROR;
 			}
 		} else {
-			c->msgid = MSG_CLARIION_PASSIVE_GOOD;
+			rdata->msgid = MSG_CLARIION_PASSIVE_GOOD;
 			/*
 			 * Remove the path from the set of paths to inactive
 			 * snapshot LUs if it was in this list since the
 			 * snapshot is no longer inactive.
 			 */
-			CLR_INACTIVE_SNAP(c);
+			CLR_INACTIVE_SNAP(rdata->mpc);
 		}
 	} else {
-		if (IS_INACTIVE_SNAP(c)) {
+		if (IS_INACTIVE_SNAP(rdata->mpc)) {
 			hexadecimal_to_ascii(ct->wwn, wwnstr);
 			condlog(3, "emc_clariion_checker: Passive "
 				"path to inactive snapshot WWN %s.",
 				wwnstr);
 			ret = PATH_DOWN;
 		} else {
-			c->msgid = MSG_CLARIION_PASSIVE_GOOD;
+			rdata->msgid = MSG_CLARIION_PASSIVE_GOOD;
 			ret = PATH_UP;	/* not ghost */
 		}
 	}

@@ -260,6 +260,15 @@ issues or pull requests on
 You will be asked to send your patches to the mailing list
 unless your patch is trivial.
 
+Developer Notes
+---------------
+
+`libudev` is not thread-safe, while multipathd is a multi-threaded
+program. Therefore all calls into `libudev` need to be protected. This is
+achieved by wrapper code. **C files must not `#include <libudev.h>` directly**.
+Use `#include "mt-udev-wrap.h"` instead. libudev calls can then be written
+as usual; they will be redirected to the wrapped calls by preprocessor macros.
+
 Mailing list
 ------------
 

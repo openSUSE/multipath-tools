@@ -124,12 +124,49 @@ enum {
 	CHECKER_MSGID_GHOST,
 	CHECKER_MSGID_UNSUPPORTED,
 	CHECKER_MSGID_DISCONNECTED,
+	CHECKER_MSGID_TIMEOUT,
+	CHECKER_MSGID_RUNNING,
 	CHECKER_GENERIC_MSGTABLE_SIZE,
 	CHECKER_FIRST_MSGID = 100,   /* lowest msgid for checkers */
 	CHECKER_MSGTABLE_SIZE = 100, /* max msg table size for checkers */
 };
 
-struct checker_class;
+/*
+ * Data shared between checkers for a struct multipath.
+ * Should be large enough to hold the data for all checker types.
+ * Currently only used by emc_clariion.
+ */
+union checker_mpcontext {
+	long long_val;
+};
+
+#define INVALID_MPCONTEXT__ -1L
+#define IS_INVALID_MPCONTEXT(mpc) ((mpc).long_val == INVALID_MPCONTEXT__)
+#define SET_INVALID_MPCONTEXT(mpc)			\
+	do {						\
+		(mpc).long_val = INVALID_MPCONTEXT__;	\
+	} while (0)
+
+struct path;
+struct checker;
+struct runner_data;
+struct checker_class {
+	struct list_head node;
+	void *handle;
+	int sync;
+	char name[CHECKER_NAME_LEN];
+	int (*check)(struct checker *, union checker_mpcontext *);
+	int (*init)(struct checker *);	/* to allocate the context */
+	void (*free)(struct checker *); /* to free the context */
+	void (*reset)(void);		/* to reset the global variables */
+	int (*pending)(struct checker *,
+		       union checker_mpcontext *); /* to recheck pending paths */
+	bool (*need_wait)(struct checker *); /* checker needs waiting for */
+	int (*async_func)(struct runner_data *); /* callback for async_checker */
+	const char **msgtable;
+	short msgtable_size;
+};
+
 struct checker {
 	struct checker_class *cls;
 	int fd;
@@ -137,9 +174,7 @@ struct checker {
 	int disable;
 	int path_state;
 	short msgid;		             /* checker-internal extra status */
-	void * context;                      /* store for persistent data */
-	void ** mpcontext;                   /* store for persistent data shared
-						multipath-wide. */
+	void *context;			     /* store for persistent data */
 };
 
 static inline int checker_selected(const struct checker *c)
@@ -150,8 +185,7 @@ static inline int checker_selected(const struct checker *c)
 const char *checker_state_name(int);
 int init_checkers(void);
 void cleanup_checkers (void);
-int checker_init (struct checker *, void **);
-int checker_mp_init(struct checker *, void **);
+int checker_init(struct checker *);
 void checker_clear (struct checker *);
 void checker_put (struct checker *);
 void checker_reset (struct checker *);
@@ -159,32 +193,10 @@ void checker_set_sync (struct checker *);
 void checker_set_async (struct checker *);
 void checker_set_fd (struct checker *, int);
 void checker_enable (struct checker *);
-void checker_disable (struct checker *);
-/*
- * start_checker_thread(): start async path checker thread
- *
- * This function provides a wrapper around pthread_create().
- * The created thread will call the DSO's "libcheck_thread" function with the
- * checker context as argument.
- *
- * Rationale:
- * Path checkers that do I/O may hang forever. To avoid blocking, some
- * checkers therefore use asynchronous, detached threads for checking
- * the paths. These threads may continue hanging if multipathd is stopped.
- * In this case, we can't unload the checker DSO at exit. In order to
- * avoid race conditions and crashes, the entry point of the thread
- * needs to be in libmultipath, not in the DSO itself.
- *
- * @param arg: pointer to struct checker_context.
- */
-struct checker_context {
-	struct checker_class *cls;
-};
-int start_checker_thread (pthread_t *thread, const pthread_attr_t *attr,
-			  struct checker_context *ctx);
-int checker_get_state(struct checker *c);
+void checker_disable(struct checker *);
+int checker_get_state(struct path *pp);
 bool checker_need_wait(struct checker *c);
-void checker_check (struct checker *, int);
+void checker_check(struct path *, int);
 int checker_is_sync(const struct checker *);
 const char *checker_name (const struct checker *);
 void reset_checker_classes(void);
@@ -197,13 +209,12 @@ void checker_clear_message (struct checker *c);
 void checker_get(struct checker *, const char *);
 
 /* Prototypes for symbols exported by path checker dynamic libraries (.so) */
-int libcheck_check(struct checker *);
+int libcheck_check(struct checker *, union checker_mpcontext *);
 int libcheck_init(struct checker *);
 void libcheck_free(struct checker *);
-void *libcheck_thread(struct checker_context *ctx);
 void libcheck_reset(void);
 int libcheck_mp_init(struct checker *);
-int libcheck_pending(struct checker *c);
+int libcheck_pending(struct checker *c, union checker_mpcontext *);
 bool libcheck_need_wait(struct checker *c);
 
 /*

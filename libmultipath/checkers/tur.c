@@ -3,116 +3,29 @@
  *
  * Copyright (c) 2004 Christophe Varoqui
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <sys/ioctl.h>
-#include <sys/sysmacros.h>
+#include <sys/types.h>
+
 #include <errno.h>
-#include <sys/time.h>
-#include <pthread.h>
-#include <urcu.h>
-#include <urcu/uatomic.h>
 
 #include "checkers.h"
-
-#include "debug.h"
+#include "async_checker.h"
 #include "sg_include.h"
-#include "util.h"
-#include "time-util.h"
 
 #define TUR_CMD_LEN 6
 #define HEAVY_CHECK_COUNT       10
-#define MAX_NR_TIMEOUTS 1
 
 enum {
-	MSG_TUR_RUNNING = CHECKER_FIRST_MSGID,
-	MSG_TUR_TIMEOUT,
-	MSG_TUR_FAILED,
-	MSG_TUR_TRANSITIONING,
+	MSG_TUR_TRANSITIONING = CHECKER_FIRST_MSGID,
 };
 
 #define IDX_(x) (MSG_ ## x - CHECKER_FIRST_MSGID)
 const char *libcheck_msgtable[] = {
-	[IDX_(TUR_RUNNING)] = " still running",
-	[IDX_(TUR_TIMEOUT)] = " timed out",
-	[IDX_(TUR_FAILED)] = " failed to initialize",
 	[IDX_(TUR_TRANSITIONING)] = " reports path is transitioning",
 	NULL,
 };
 
-struct tur_checker_context {
-	dev_t devt;
-	int state;
-	int running; /* uatomic access only */
-	int fd;
-	unsigned int timeout;
-	time_t time;
-	pthread_t thread;
-	pthread_mutex_t lock;
-	pthread_cond_t active;
-	int holders; /* uatomic access only */
-	int msgid;
-	struct checker_context ctx;
-	unsigned int nr_timeouts;
-	bool checked_state;
-};
-
-int libcheck_init (struct checker * c)
-{
-	struct tur_checker_context *ct;
-	struct stat sb;
-
-	ct = malloc(sizeof(struct tur_checker_context));
-	if (!ct)
-		return 1;
-	memset(ct, 0, sizeof(struct tur_checker_context));
-
-	ct->state = PATH_UNCHECKED;
-	ct->fd = -1;
-	uatomic_set(&ct->holders, 1);
-	pthread_cond_init_mono(&ct->active);
-	pthread_mutex_init(&ct->lock, NULL);
-	if (fstat(c->fd, &sb) == 0)
-		ct->devt = sb.st_rdev;
-	ct->ctx.cls = c->cls;
-	c->context = ct;
-
-	return 0;
-}
-
-static void cleanup_context(struct tur_checker_context *ct)
-{
-	pthread_mutex_destroy(&ct->lock);
-	pthread_cond_destroy(&ct->active);
-	free(ct);
-}
-
-void libcheck_free (struct checker * c)
-{
-	if (c->context) {
-		struct tur_checker_context *ct = c->context;
-		int holders;
-		int running;
-
-		running = uatomic_xchg(&ct->running, 0);
-		if (running)
-			pthread_cancel(ct->thread);
-		ct->thread = 0;
-		holders = uatomic_sub_return(&ct->holders, 1);
-		if (!holders)
-			cleanup_context(ct);
-		c->context = NULL;
-	}
-	return;
-}
-
-static int
-tur_check(int fd, unsigned int timeout, short *msgid)
+int libcheck_async_func(struct runner_data *rdata)
 {
 	struct sg_io_hdr io_hdr;
 	unsigned char turCmdBlk[TUR_CMD_LEN] = { 0x00, 0, 0, 0, 0, 0 };
@@ -128,14 +41,14 @@ retry:
 	io_hdr.dxfer_direction = SG_DXFER_NONE;
 	io_hdr.cmdp = turCmdBlk;
 	io_hdr.sbp = sense_buffer;
-	io_hdr.timeout = timeout * 1000;
+	io_hdr.timeout = rdata->timeout * 1000;
 	io_hdr.pack_id = 0;
-	if (ioctl(fd, SG_IO, &io_hdr) < 0) {
+	if (ioctl(rdata->fd, SG_IO, &io_hdr) < 0) {
 		if (errno == ENOTTY) {
-			*msgid = CHECKER_MSGID_UNSUPPORTED;
+			rdata->msgid = CHECKER_MSGID_UNSUPPORTED;
 			return PATH_WILD;
 		}
-		*msgid = CHECKER_MSGID_DOWN;
+		rdata->msgid = CHECKER_MSGID_DOWN;
 		return PATH_DOWN;
 	}
 	if ((io_hdr.status & 0x7e) == 0x18) {
@@ -143,7 +56,7 @@ retry:
 		 * SCSI-3 arrays might return
 		 * reservation conflict on TUR
 		 */
-		*msgid = CHECKER_MSGID_UP;
+		rdata->msgid = CHECKER_MSGID_UP;
 		return PATH_UP;
 	}
 	if (io_hdr.info & SG_INFO_OK_MASK) {
@@ -188,14 +101,14 @@ retry:
 				 * LOGICAL UNIT NOT ACCESSIBLE,
 				 * TARGET PORT IN STANDBY STATE
 				 */
-				*msgid = CHECKER_MSGID_GHOST;
+				rdata->msgid = CHECKER_MSGID_GHOST;
 				return PATH_GHOST;
 			} else if (asc == 0x04 && ascq == 0x0a) {
 				/*
 				 * LOGICAL UNIT NOT ACCESSIBLE,
 				 * ASYMMETRIC ACCESS STATE TRANSITION
 				 */
-				*msgid = MSG_TUR_TRANSITIONING;
+				rdata->msgid = MSG_TUR_TRANSITIONING;
 				return PATH_PENDING;
 			}
 		} else if (key == 0x5) {
@@ -205,288 +118,13 @@ retry:
 				 * LUN NOT SUPPORTED: unmapped at target.
 				 * Signals pp->disconnected, becomes PATH_DOWN.
 				 */
-				*msgid = CHECKER_MSGID_DISCONNECTED;
+				rdata->msgid = CHECKER_MSGID_DISCONNECTED;
 				return PATH_DISCONNECTED;
 			}
 		}
-		*msgid = CHECKER_MSGID_DOWN;
+		rdata->msgid = CHECKER_MSGID_DOWN;
 		return PATH_DOWN;
 	}
-	*msgid = CHECKER_MSGID_UP;
+	rdata->msgid = CHECKER_MSGID_UP;
 	return PATH_UP;
-}
-
-#define tur_thread_cleanup_push(ct) pthread_cleanup_push(cleanup_func, ct)
-#define tur_thread_cleanup_pop(ct) pthread_cleanup_pop(1)
-
-static void cleanup_func(void *data)
-{
-	int holders;
-	struct tur_checker_context *ct = data;
-
-	holders = uatomic_sub_return(&ct->holders, 1);
-	if (!holders)
-		cleanup_context(ct);
-}
-
-/*
- * Test code for "zombie tur thread" handling.
- * Compile e.g. with CFLAGS=-DTUR_TEST_MAJOR=8
- * Additional parameters can be configure with the macros below.
- *
- * Everty nth started TUR thread will hang in non-cancellable state
- * for given number of seconds, for device given by major/minor.
- */
-#ifdef TUR_TEST_MAJOR
-
-#ifndef TUR_TEST_MINOR
-#define TUR_TEST_MINOR 0
-#endif
-#ifndef TUR_SLEEP_INTERVAL
-#define TUR_SLEEP_INTERVAL 3
-#endif
-#ifndef TUR_SLEEP_SECS
-#define TUR_SLEEP_SECS 60
-#endif
-
-static void tur_deep_sleep(const struct tur_checker_context *ct)
-{
-	static int sleep_cnt;
-	const struct timespec ts = { .tv_sec = TUR_SLEEP_SECS, .tv_nsec = 0 };
-	int oldstate;
-
-	if (ct->devt != makedev(TUR_TEST_MAJOR, TUR_TEST_MINOR) ||
-	    ++sleep_cnt % TUR_SLEEP_INTERVAL != 0)
-		return;
-
-	condlog(1, "tur thread going to sleep for %ld seconds", ts.tv_sec);
-	if (pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate) != 0)
-		condlog(0, "pthread_setcancelstate: %m");
-	if (nanosleep(&ts, NULL) != 0)
-		condlog(0, "nanosleep: %m");
-	condlog(1, "tur zombie thread woke up");
-	if (pthread_setcancelstate(oldstate, NULL) != 0)
-		condlog(0, "pthread_setcancelstate (2): %m");
-	pthread_testcancel();
-}
-#else
-#define tur_deep_sleep(x) do {} while (0)
-#endif /* TUR_TEST_MAJOR */
-
-void *libcheck_thread(struct checker_context *ctx)
-{
-	struct tur_checker_context *ct =
-		container_of(ctx, struct tur_checker_context, ctx);
-	int state, running;
-	short msgid;
-
-	/* This thread can be canceled, so setup clean up */
-	tur_thread_cleanup_push(ct);
-
-	condlog(4, "%d:%d : tur checker starting up", major(ct->devt),
-		minor(ct->devt));
-
-	tur_deep_sleep(ct);
-	state = tur_check(ct->fd, ct->timeout, &msgid);
-	pthread_testcancel();
-
-	/* TUR checker done */
-	pthread_mutex_lock(&ct->lock);
-	ct->state = state;
-	ct->msgid = msgid;
-	pthread_cond_signal(&ct->active);
-	pthread_mutex_unlock(&ct->lock);
-
-	condlog(4, "%d:%d : tur checker finished, state %s", major(ct->devt),
-		minor(ct->devt), checker_state_name(state));
-
-	running = uatomic_xchg(&ct->running, 0);
-	if (!running)
-		pause();
-
-	tur_thread_cleanup_pop(ct);
-
-	return ((void *)0);
-}
-
-static void tur_set_async_timeout(struct checker *c)
-{
-	struct tur_checker_context *ct = c->context;
-	struct timespec now;
-
-	get_monotonic_time(&now);
-	ct->time = now.tv_sec + c->timeout;
-}
-
-static int tur_check_async_timeout(struct checker *c)
-{
-	struct tur_checker_context *ct = c->context;
-	struct timespec now;
-
-	get_monotonic_time(&now);
-	return (now.tv_sec > ct->time);
-}
-
-int check_pending(struct checker *c)
-{
-	struct tur_checker_context *ct = c->context;
-	int tur_status = PATH_PENDING;
-
-	pthread_mutex_lock(&ct->lock);
-
-	if (ct->state != PATH_PENDING || ct->msgid != MSG_TUR_RUNNING)
-	{
-		tur_status = ct->state;
-		c->msgid = ct->msgid;
-	}
-	pthread_mutex_unlock(&ct->lock);
-	if (tur_status == PATH_PENDING && c->msgid == MSG_TUR_RUNNING) {
-		condlog(4, "%d:%d : tur checker still running",
-			major(ct->devt), minor(ct->devt));
-	} else {
-		int running = uatomic_xchg(&ct->running, 0);
-		if (running)
-			pthread_cancel(ct->thread);
-		ct->thread = 0;
-	}
-
-	ct->checked_state = true;
-	return tur_status;
-}
-
-bool libcheck_need_wait(struct checker *c)
-{
-	struct tur_checker_context *ct = c->context;
-	return (ct && ct->thread && uatomic_read(&ct->running) != 0 &&
-		!ct->checked_state);
-}
-
-int libcheck_pending(struct checker *c)
-{
-	struct tur_checker_context *ct = c->context;
-
-	/* The if path checker isn't running, just return the exiting value. */
-	if (!ct || !ct->thread)
-		return c->path_state;
-
-	return check_pending(c);
-}
-
-int libcheck_check(struct checker * c)
-{
-	struct tur_checker_context *ct = c->context;
-	pthread_attr_t attr;
-	int tur_status, r;
-
-	if (!ct)
-		return PATH_UNCHECKED;
-
-	if (checker_is_sync(c))
-		return tur_check(c->fd, c->timeout, &c->msgid);
-
-	/*
-	 * Async mode
-	 */
-	if (ct->thread) {
-		ct->checked_state = true;
-		if (tur_check_async_timeout(c)) {
-			int running = uatomic_xchg(&ct->running, 0);
-			if (running) {
-				pthread_cancel(ct->thread);
-				condlog(3, "%d:%d : tur checker timeout",
-					major(ct->devt), minor(ct->devt));
-				c->msgid = MSG_TUR_TIMEOUT;
-				tur_status = PATH_TIMEOUT;
-			} else {
-				pthread_mutex_lock(&ct->lock);
-				tur_status = ct->state;
-				c->msgid = ct->msgid;
-				pthread_mutex_unlock(&ct->lock);
-			}
-			ct->thread = 0;
-		} else if (uatomic_read(&ct->running) != 0) {
-			condlog(3, "%d:%d : tur checker not finished",
-				major(ct->devt), minor(ct->devt));
-			tur_status = PATH_PENDING;
-			c->msgid = MSG_TUR_RUNNING;
-		} else {
-			/* TUR checker done */
-			ct->thread = 0;
-			pthread_mutex_lock(&ct->lock);
-			tur_status = ct->state;
-			c->msgid = ct->msgid;
-			pthread_mutex_unlock(&ct->lock);
-		}
-	} else {
-		if (uatomic_read(&ct->holders) > 1) {
-			/* The thread has been cancelled but hasn't quit. */
-			if (ct->nr_timeouts == MAX_NR_TIMEOUTS) {
-				condlog(2, "%d:%d : waiting for stalled tur thread to finish",
-					major(ct->devt), minor(ct->devt));
-				ct->nr_timeouts++;
-			}
-			/*
-			 * Don't start new threads until the last once has
-			 * finished.
-			 */
-			if (ct->nr_timeouts > MAX_NR_TIMEOUTS) {
-				c->msgid = MSG_TUR_TIMEOUT;
-				return PATH_TIMEOUT;
-			}
-			ct->nr_timeouts++;
-			/*
-			 * Start a new thread while the old one is stalled.
-			 * We have to prevent it from interfering with the new
-			 * thread. We create a new context and leave the old
-			 * one with the stale thread, hoping it will clean up
-			 * eventually.
-			 */
-			condlog(3, "%d:%d : tur thread not responding",
-				major(ct->devt), minor(ct->devt));
-
-			/*
-			 * libcheck_init will replace c->context.
-			 * It fails only in OOM situations. In this case, return
-			 * PATH_UNCHECKED to avoid prematurely failing the path.
-			 */
-			if (libcheck_init(c) != 0) {
-				c->msgid = MSG_TUR_FAILED;
-				return PATH_UNCHECKED;
-			}
-			((struct tur_checker_context *)c->context)->nr_timeouts = ct->nr_timeouts;
-
-			if (!uatomic_sub_return(&ct->holders, 1)) {
-				/* It did terminate, eventually */
-				cleanup_context(ct);
-				((struct tur_checker_context *)c->context)->nr_timeouts = 0;
-			}
-
-			ct = c->context;
-		} else
-			ct->nr_timeouts = 0;
-		/* Start new TUR checker */
-		pthread_mutex_lock(&ct->lock);
-		tur_status = ct->state = PATH_PENDING;
-		c->msgid = ct->msgid = MSG_TUR_RUNNING;
-		pthread_mutex_unlock(&ct->lock);
-		ct->fd = c->fd;
-		ct->timeout = c->timeout;
-		ct->checked_state = false;
-		uatomic_add(&ct->holders, 1);
-		uatomic_set(&ct->running, 1);
-		tur_set_async_timeout(c);
-		setup_thread_attr(&attr, 32 * 1024, 1);
-		r = start_checker_thread(&ct->thread, &attr, &ct->ctx);
-		pthread_attr_destroy(&attr);
-		if (r) {
-			uatomic_sub(&ct->holders, 1);
-			uatomic_set(&ct->running, 0);
-			ct->thread = 0;
-			condlog(3, "%d:%d : failed to start tur thread, using"
-				" sync mode", major(ct->devt), minor(ct->devt));
-			return tur_check(c->fd, c->timeout, &c->msgid);
-		}
-	}
-
-	return tur_status;
 }

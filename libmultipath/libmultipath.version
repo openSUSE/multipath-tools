@@ -43,7 +43,7 @@ LIBMPATHCOMMON_1.0.0 {
 	put_multipath_config;
 };
 
-LIBMULTIPATH_32.0.0 {
+LIBMULTIPATH_34.0.0 {
 global:
 	/* symbols referenced by multipath and multipathd */
 	add_foreign;
@@ -221,7 +221,6 @@ global:
 	/* checkers */
 	checker_is_sync;
 	sg_read;
-	start_checker_thread;
 
 	/* prioritizers */
 	get_asymmetric_access_state;

@@ -405,7 +405,8 @@ bool libcheck_need_wait(struct checker *c)
 		!ct->checked_state);
 }
 
-int libcheck_pending(struct checker *c)
+int libcheck_pending(struct checker *c,
+		     union checker_mpcontext *mpc __attribute__((unused)))
 {
 	int rc;
 	struct io_event event;
@@ -441,7 +442,8 @@ out:
 	return rc;
 }
 
-int libcheck_check (struct checker * c)
+int libcheck_check(struct checker *c,
+		   union checker_mpcontext *mpctx __attribute__((unused)))
 {
 	int ret;
 	struct directio_context * ct = (struct directio_context *)c->context;

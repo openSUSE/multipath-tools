@@ -1,0 +1,15 @@
+{
+   glibc TLS for detached threads if program is terminated
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   ...
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   ...
+   fun:get_runner
+   fun:start_runner
+   ...
+   fun:main
+}

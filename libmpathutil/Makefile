@@ -13,7 +13,7 @@ LIBDEPS += -lpthread -ldl -ludev -L$(mpathcmddir) -lmpathcmd $(SYSTEMD_LIBDEPS) 
 
 # other object files
 OBJS := mt-libudev.o parser.o vector.o util.o debug.o time-util.o \
-	uxsock.o log_pthread.o log.o strbuf.o globals.o msort.o
+	uxsock.o log_pthread.o log.o strbuf.o globals.o msort.o runner.o
 
 all:	$(DEVLIB)
 

@@ -9,6 +9,7 @@ BreakBeforeBraces: Linux
 BreakStringLiterals: false
 AllowShortFunctionsOnASingleLine: Empty
 AlignAfterOpenBracket: Align
+AlignArrayOfStructures: Left
 PointerAlignment: Right
 ColumnLimit: 79
 PenaltyBreakAssignment: 50
@@ -29,4 +30,6 @@ ForEachMacros:
   - vector_foreach_slot
   - vector_foreach_slot_backwards
   - vector_foreach_slot_after
+Cpp11BracedListStyle: false
+ReflowComments: Never
 ---

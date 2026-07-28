@@ -25,12 +25,6 @@ const struct timespec one_sec = { .tv_sec = 1 };
 const char *test_dev = NULL;
 unsigned int test_delay = 10000;
 
-#ifdef __GLIBC__
-#define ioctl_request_t unsigned long
-#else
-#define ioctl_request_t int
-#endif
-
 int REAL_IOCTL(int fd, ioctl_request_t request, void *argp);
 
 int WRAP_IOCTL(int fd, ioctl_request_t request, void *argp)
@@ -227,7 +221,7 @@ void do_check_state(struct checker *c, int sync, int chk_state)
 
 void do_libcheck_pending(struct checker *c, int chk_state)
 {
-	assert_int_equal(libcheck_pending(c), chk_state);
+	assert_int_equal(libcheck_pending(c, NULL), chk_state);
 	assert_int_equal(ev_off, 0);
 	memset(mock_events, 0, sizeof(mock_events));
 }

@@ -261,7 +261,7 @@ alloc_multipath (void)
 
 	if (mpp) {
 		mpp->bestpg = 1;
-		mpp->mpcontext = NULL;
+		SET_INVALID_MPCONTEXT(mpp->mpcontext);
 		mpp->no_path_retry = NO_PATH_RETRY_UNDEF;
 		dm_multipath_to_gen(mpp)->ops = &dm_gen_multipath_ops;
 	}
@@ -330,7 +330,6 @@ void free_multipath(struct multipath *mpp)
 		vector_free(mpp->hwe);
 		mpp->hwe = NULL;
 	}
-	free(mpp->mpcontext);
 	free(mpp);
 }
 
