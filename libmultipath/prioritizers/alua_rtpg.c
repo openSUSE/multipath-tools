@@ -264,8 +264,8 @@ out:
 	return rc;
 }
 
-int
-do_rtpg(int fd, void* resp, long resplen, unsigned int timeout)
+int do_rtpg(int fd, void *resp, long resplen, unsigned int timeout,
+	    unsigned int *len_p)
 {
 	struct rtpg_command	cmd;
 	struct sg_io_hdr	hdr;
@@ -295,6 +295,11 @@ do_rtpg(int fd, void* resp, long resplen, unsigned int timeout)
 		PRINT_DEBUG("do_rtpg: SCSI error!\n");
 		return -RTPG_RTPG_FAILED;
 	}
+	if (hdr.resid < 0 || (unsigned int)hdr.resid > hdr.dxfer_len)
+		/* resid failed sanity check*/
+		return -RTPG_RTPG_FAILED;
+	if (len_p)
+		*len_p = hdr.dxfer_len - hdr.resid;
 	PRINT_HEX(resp, resplen);
 
 	return 0;
@@ -303,11 +308,10 @@ do_rtpg(int fd, void* resp, long resplen, unsigned int timeout)
 int
 get_asymmetric_access_state(int fd, unsigned int tpg, unsigned int timeout)
 {
-	unsigned char		*buf;
-	struct rtpg_data *	tpgd;
+	unsigned char *buf;
 	struct rtpg_tpg_dscr *	dscr;
 	int			rc;
-	int			buflen;
+	unsigned int buflen, data_len;
 	uint64_t		scsi_buflen;
 
 	buflen = 4096;
@@ -318,10 +322,17 @@ get_asymmetric_access_state(int fd, unsigned int tpg, unsigned int timeout)
 		return -RTPG_RTPG_FAILED;
 	}
 	memset(buf, 0, buflen);
-	rc = do_rtpg(fd, buf, buflen, timeout);
-	if (rc < 0)
+	rc = do_rtpg(fd, buf, buflen, timeout, &data_len);
+	if (rc < 0) {
+		PRINT_DEBUG("%s: do_rtpg returned %d", __func__, rc);
 		goto out;
-	scsi_buflen = (buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3]) + 4;
+	}
+	if (data_len < 4) {
+		PRINT_DEBUG("do_rtpg only returned %u bytes", data_len);
+		rc = -RTPG_RTPG_FAILED;
+		goto out;
+	}
+	scsi_buflen = get_uint32(&buf[0]) + 4;
 	if (scsi_buflen > UINT_MAX)
 		scsi_buflen = UINT_MAX;
 	if (buflen < scsi_buflen) {
@@ -334,14 +345,19 @@ get_asymmetric_access_state(int fd, unsigned int tpg, unsigned int timeout)
 		}
 		buflen = scsi_buflen;
 		memset(buf, 0, buflen);
-		rc = do_rtpg(fd, buf, buflen, timeout);
+		rc = do_rtpg(fd, buf, buflen, timeout, &data_len);
 		if (rc < 0)
 			goto out;
 	}
+	if ((uint64_t)data_len < get_uint32(&buf[0]) + 4)
+		PRINT_DEBUG("rtpg data truncated. Read %u of %" PRIu64 " bytes",
+			    data_len, (uint64_t)get_uint32(&buf[0]) + 4);
 
-	tpgd = (struct rtpg_data *) buf;
 	rc   = -RTPG_TPG_NOT_FOUND;
-	RTPG_FOR_EACH_PORT_GROUP(tpgd, dscr) {
+	for (dscr = (struct rtpg_tpg_dscr *)&buf[4];
+	     (unsigned char *)(dscr + 1) <= buf + data_len &&
+	     (unsigned char *)(dscr->data + dscr->port_count) <= buf + data_len;
+	     dscr = (struct rtpg_tpg_dscr *)(dscr->data + dscr->port_count)) {
 		if (get_uint16(dscr->tpg) == tpg) {
 			if (rc != -RTPG_TPG_NOT_FOUND) {
 				PRINT_DEBUG("get_asymmetric_access_state: "
