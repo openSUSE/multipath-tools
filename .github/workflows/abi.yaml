@@ -57,7 +57,7 @@ jobs:
           name: abi
           path: abi
           overwrite: true
-      - name: compare ABI against reference
+      - name: Compare ABI between ${{ env.ABI_BRANCH }} and ${{ github.ref_name }}
         id: compare
         continue-on-error: true
         if: steps.reference.outcome == 'success'
@@ -69,8 +69,7 @@ jobs:
           name: abi-test
           path: abi-test
           overwrite: true
-
-      - name: fail
+      - name: Record failure
         # MUST use >- here, otherwise the condition always evaluates to true
         if: >-
           ${{
@@ -78,4 +77,43 @@ jobs:
               (steps.reference.outcome == 'failure' ||
                steps.compare.outcome == 'failure')
           }}
-        run: false
+        run: echo "FAILURE=1" >> $GITHUB_ENV
+      - name: Fetch ${{ env.ABI_BRANCH }}
+        run: |
+          echo "${{ env.ABI_BRANCH }}" | base64
+          echo "$ABI_BRANCH" | base64
+          git fetch --depth=1 origin ${{ env.ABI_BRANCH }}
+        if: env.FAILURE != ''
+      - name: Compare library versions of ${{ env.ABI_BRANCH }} and ${{ github.ref_name }}
+        if: env.FAILURE != ''
+        # Check for the "ABI differences in ..." heading in abi-test.
+        # For each library that differs, make sure that the respective
+        # .version file has changes in the library version(s) supported.
+        run: |
+          ABI_ERROR=()
+          while read l; do
+              ll=$l/$l.version
+              echo "Checking ABI differences in $l ..."
+              diff -u \
+                  <(git show "origin/$ABI_BRANCH:$ll" |
+                      sed -nE 's,^([A-Z][-_.0-9A-Za-z]*) *\{,\1,p') \
+                  <(git show "HEAD:$ll" |
+                      sed -nE 's,^([A-Z][-_.0-9A-Za-z]*) *\{,\1,p') || {
+                  case $? in
+                  1)
+                      echo "... library versions differ, OK"
+                      continue
+                      ;;
+                  *)
+                      echo "... error in diff!"
+                      ERROR=$l
+                      ;;
+                  esac
+              }
+              echo "... library versions do not differ!"
+              ABI_ERROR=("${ABI_ERROR[@]}" $l)
+          done < \
+             <(sed -En 's,^=* ABI differences.*/([-_a-z.]*)-nv\.abi =*,\1,p' \
+               abi-test)
+          echo "${#ABI_ERROR[@]} ABI errors in ${ABI_ERROR[@]}"
+          [[ ${#ABI_ERROR[@]} == 0 && ! $ERROR ]]
