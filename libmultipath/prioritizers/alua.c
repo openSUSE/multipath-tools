@@ -26,16 +26,18 @@
 #define ALUA_PRIO_TPGS_FAILED			4
 #define ALUA_PRIO_NO_INFORMATION		5
 
+// clang-format off
 static const char * aas_string[] = {
 	[AAS_OPTIMIZED]		= "active/optimized",
 	[AAS_NON_OPTIMIZED]	= "active/non-optimized",
 	[AAS_STANDBY]		= "standby",
 	[AAS_UNAVAILABLE]	= "unavailable",
-	[AAS_LBA_DEPENDENT]	= "logical block dependent",
-	[AAS_RESERVED]		= "ARRAY BUG: invalid TPGs state!",
+	[AAS_LBA_DEPENDENT]	= "lba-dependent",
+	[AAS_RESERVED]		= "reserved",
 	[AAS_OFFLINE]		= "offline",
-	[AAS_TRANSITIONING]	= "transitioning between states",
+	[AAS_TRANSITIONING]	= "transitioning",
 };
+// clang-format on
 
 static const char *aas_print_string(int rc)
 {

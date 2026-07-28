@@ -841,6 +841,7 @@ int do_mpath_persistent_reserve_out(vector curmp, vector pathvec, int fd,
 	bool unregistering, preempting_reservation = false;
 	bool updated_prkey = false;
 	bool failed_paths = false;
+	bool self_preempt_unreg = false;
 
 	ret = mpath_get_map(curmp, fd, &mpp);
 	if (ret != MPATH_PR_SUCCESS)
@@ -953,7 +954,10 @@ int do_mpath_persistent_reserve_out(vector curmp, vector pathvec, int fd,
 		break;
 	case MPATH_PROUT_PREE_SA:
 	case MPATH_PROUT_PREE_AB_SA:
-		if (reservation_key_matches(mpp, paramp->sa_key, NULL) == YNU_YES) {
+		ret = reservation_key_matches(mpp, paramp->sa_key, NULL);
+		if (ret == YNU_UNDEF)
+			return MPATH_PR_OTHER;
+		if (ret == YNU_YES) {
 			preempting_reservation = true;
 			if (memcmp(paramp->sa_key, &zerokey, 8) == 0) {
 				/* all registrants case */
@@ -961,13 +965,20 @@ int do_mpath_persistent_reserve_out(vector curmp, vector pathvec, int fd,
 						  rq_type, noisy);
 				break;
 			}
+			/* if we are preempting ourself */
+			if (memcmp(paramp->sa_key, paramp->key, 8) == 0) {
+				ret = preempt_self(mpp, rq_servact, rq_scope,
+						   rq_type, noisy, PREE_WORK_NONE);
+				break;
+			}
+		} else if (memcmp(paramp->sa_key, paramp->key, 8) == 0) {
+			/*
+			 * We are self-preempting, but we don't hold the
+			 * reservation. This will unregister the device
+			 */
+			self_preempt_unreg = true;
 		}
-		/* if we are preempting ourself */
-		if (memcmp(paramp->sa_key, paramp->key, 8) == 0) {
-			ret = preempt_self(mpp, rq_servact, rq_scope, rq_type,
-					   noisy, PREE_WORK_NONE);
-			break;
-		}
+
 		/* fallthrough */
 	case MPATH_PROUT_RES_SA:
 	case MPATH_PROUT_CLEAR_SA: {
@@ -1018,6 +1029,8 @@ int do_mpath_persistent_reserve_out(vector curmp, vector pathvec, int fd,
 	case MPATH_PROUT_PREE_AB_SA:
 		if (preempting_reservation)
 			update_prhold(mpp->alias, true);
+		else if (self_preempt_unreg)
+			update_prflag(mpp, 0);
 	}
 	return ret;
 }
