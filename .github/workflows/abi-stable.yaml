@@ -19,6 +19,16 @@ jobs:
   reference-abi:
     runs-on: ubuntu-24.04
     steps:
+      - name: get parent tag (push)
+        run: >
+          echo ${{ github.ref }} |
+          sed -E 's,refs/heads/stable-([0-9]\.[0-9]*)\.y,PARENT_TAG=\1.0,' >> $GITHUB_ENV
+        if: env.PARENT_TAG == '' && github.event_name != 'pull_request'
+      - name: get parent tag (PR)
+        run: >
+          echo ${{ github.base_ref }} |
+          sed -E 's,stable-([0-9]\.[0-9]*)\.y,PARENT_TAG=\1.0,' >> $GITHUB_ENV
+        if: env.PARENT_TAG == '' && github.event_name == 'pull_request'
       - name: assert parent tag
         run: /bin/false
         if: env.PARENT_TAG == ''
@@ -63,6 +73,16 @@ jobs:
     runs-on: ubuntu-24.04
     needs: reference-abi
     steps:
+      - name: get parent tag (push)
+        run: >
+          echo ${{ github.ref }} |
+          sed -E 's,refs/heads/stable-([0-9]\.[0-9]*)\.y,PARENT_TAG=\1.0,' >> $GITHUB_ENV
+        if: env.PARENT_TAG == '' && github.event_name != 'pull_request'
+      - name: get parent tag (PR)
+        run: >
+          echo ${{ github.base_ref }} |
+          sed -E 's,stable-([0-9]\.[0-9]*)\.y,PARENT_TAG=\1.0,' >> $GITHUB_ENV
+        if: env.PARENT_TAG == '' && github.event_name == 'pull_request'
       - name: assert parent tag
         run: /bin/false
         if: env.PARENT_TAG == ''
@@ -99,6 +119,41 @@ jobs:
         with:
           name: abi-test
           path: abi-test
-      - name: fail
-        run: /bin/false
+      - name: Fetch ${{ env.PARENT_TAG }}
         if: steps.check_abi.outcome != 'success'
+        run: >-
+          git fetch --depth=1 origin \
+              "refs/tags/$PARENT_TAG:refs/tags/$PARENT_TAG"
+      - name: Check library versions of ${{ env.PARENT_TAG }} and ${{ github.ref_name }}
+        if: steps.check_abi.outcome != 'success'
+        # Check for the "ABI differences in ..." heading in abi-test.
+        # For each library that differs, make sure that the respective
+        # .version file has changes in the library version(s) supported.
+        run: |
+          ABI_ERROR=()
+          while read l; do
+              ll=$l/$l.version
+              echo "Checking ABI differences in $l ..."
+              diff -u \
+                  <(git show "$PARENT_TAG:$ll" |
+                      sed -nE 's,^([A-Z][-_.0-9A-Za-z]*) *\{,\1,p') \
+                  <(git show "HEAD:$ll" |
+                      sed -nE 's,^([A-Z][-_.0-9A-Za-z]*) *\{,\1,p') || {
+                  case $? in
+                  1)
+                      echo "... library versions differ, OK"
+                      continue
+                      ;;
+                  *)
+                      echo "... error in diff!"
+                      ERROR=$l
+                      ;;
+                  esac
+              }
+              echo "... library versions do not differ!"
+              ABI_ERROR=("${ABI_ERROR[@]}" $l)
+          done < \
+             <(sed -En 's,^=* ABI differences.*/([-_a-z.]*)-nv\.abi =*,\1,p' \
+               abi-test)
+          echo "${#ABI_ERROR[@]} ABI errors in ${ABI_ERROR[@]}"
+          [[ ${#ABI_ERROR[@]} == 0 && ! $ERROR ]]
