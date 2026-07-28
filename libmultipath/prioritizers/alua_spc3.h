@@ -312,15 +312,4 @@ struct rtpg_data {
 	struct rtpg_tpg_dscr		data[0];
 } __attribute__((packed));
 
-#define RTPG_FOR_EACH_PORT_GROUP(p, g) \
-		for( \
-			g = &(p->data[0]); \
-			((char *) g) < ((char *) p) + get_unaligned_be32(p->length); \
-			g = (struct rtpg_tpg_dscr *) ( \
-				((char *) g) + \
-				sizeof(struct rtpg_tpg_dscr) + \
-				g->port_count * sizeof(struct rtpg_tp_dscr) \
-			) \
-		)
-
 #endif /* ALUA_SPC3_H_INCLUDED */
