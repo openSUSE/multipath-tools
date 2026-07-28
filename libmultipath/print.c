@@ -802,7 +802,8 @@ snprint_multipath_header (char * line, int len, char * format)
 			NOPAD;
 			continue;
 		}
-		f++;
+		if (!(*f++))
+			break;
 
 		if (!(data = mpd_lookup(*f)))
 			continue; /* unknown wildcard */
@@ -835,7 +836,8 @@ snprint_multipath (char * line, int len, char * format,
 			NOPAD;
 			continue;
 		}
-		f++;
+		if (!(*f++))
+			break;
 
 		if (!(data = mpd_lookup(*f)))
 			continue;
@@ -869,7 +871,8 @@ snprint_path_header (char * line, int len, char * format)
 			NOPAD;
 			continue;
 		}
-		f++;
+		if (!(*f++))
+			break;
 
 		if (!(data = pd_lookup(*f)))
 			continue; /* unknown wildcard */
@@ -902,7 +905,8 @@ snprint_path (char * line, int len, char * format,
 			NOPAD;
 			continue;
 		}
-		f++;
+		if (!(*f++))
+			break;
 
 		if (!(data = pd_lookup(*f)))
 			continue;
@@ -937,7 +941,8 @@ snprint_pathgroup (char * line, int len, char * format,
 			NOPAD;
 			continue;
 		}
-		f++;
+		if (!(*f++))
+			break;
 
 		if (!(data = pgd_lookup(*f)))
 			continue;
