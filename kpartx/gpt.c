@@ -36,6 +36,7 @@
 #include <endian.h>
 #include <byteswap.h>
 #include <linux/fs.h>
+#include <sys/mman.h>
 #include "crc32.h"
 #include "kpartx.h"
 
@@ -64,6 +65,12 @@
 #define BLKGETSIZE64 _IOR(0x12,114,sizeof(uint64_t))	/* return device size in bytes (u64 *arg) */
 #endif
 
+/*
+ * The max size of a partition table that we will read for calculating the CRC.
+ * Note that this is much larger than MAX_SLICES. It's 0x02000000 on most systems.
+ */
+#define MAX_PT_SIZE ((SIZE_MAX <= UINT32_MAX ? SIZE_MAX : UINT32_MAX) / sizeof(gpt_entry))
+
 struct blkdev_ioctl_param {
 	unsigned int block;
 	size_t content_length;
@@ -82,8 +89,7 @@ struct blkdev_ioctl_param {
  * Note, the EFI Specification, v1.02, has a reference to
  * Dr. Dobbs Journal, May 1994 (actually it's in May 1992).
  */
-static inline uint32_t
-efi_crc32(const void *buf, unsigned long len)
+static inline uint32_t efi_crc32(const void *buf, size_t len)
 {
 	return (crc32(~0L, buf, len) ^ ~0L);
 }
@@ -234,24 +240,48 @@ read_lba(int fd, uint64_t lba, void *buffer, size_t bytes)
  * Allocates space for PTEs based on information found in @gpt.
  * Notes: remember to free pte when you're done!
  */
-static gpt_entry *
-alloc_read_gpt_entries(int fd, gpt_header * gpt)
+static gpt_entry *alloc_read_gpt_entries(int fd, gpt_header *gpt, unsigned int ns)
 {
-	gpt_entry *pte;
-	size_t count = __le32_to_cpu(gpt->num_partition_entries) *
-		__le32_to_cpu(gpt->sizeof_partition_entry);
+	gpt_entry *pte = NULL;
+	size_t num_entries = __le32_to_cpu(gpt->num_partition_entries);
+	size_t n_alloc = num_entries <= ns ? num_entries : ns;
+	long pagesz = sysconf(_SC_PAGESIZE);
+	off_t ofs = __le64_to_cpu(gpt->partition_entry_lba) * get_sector_size(fd);
+	off_t ofs_aligned = ofs & ~(pagesz - 1);
+	uint32_t crc;
+	size_t arr_len, count;
+	unsigned char *pe_map;
 
-	if (!count) return NULL;
-
-	if (aligned_malloc((void **)&pte, get_sector_size(fd), &count))
+	if (!num_entries || num_entries > MAX_PT_SIZE)
 		return NULL;
-	memset(pte, 0, count);
 
-	if (!read_lba(fd, __le64_to_cpu(gpt->partition_entry_lba), pte,
-		      count)) {
-		free(pte);
+	arr_len = num_entries * sizeof(gpt_entry);
+	ofs -= ofs_aligned;
+	pe_map = mmap(NULL, arr_len + ofs, PROT_READ, MAP_SHARED, fd, ofs_aligned);
+
+	if (pe_map == MAP_FAILED) {
+		fprintf(stderr, "%s: mmap failed: %s\n", __func__, strerror(errno));
 		return NULL;
 	}
+
+	crc = efi_crc32(pe_map + ofs, arr_len);
+	if (crc != __le32_to_cpu(gpt->partition_entry_array_crc32)) {
+		fprintf(stderr, "%s: CRC32 checksum mismatch", __func__);
+		goto out;
+	}
+
+	count = n_alloc * sizeof(gpt_entry);
+	pte = malloc(count);
+	if (pte == NULL)
+		goto out;
+
+	memcpy(pte, pe_map + ofs, count);
+	if (n_alloc < num_entries)
+		fprintf(stderr,
+			"%s: partition table size (%zu) is larger than supported (%zu)\n",
+			__func__, num_entries, n_alloc);
+out:
+	munmap(pe_map, arr_len + ofs);
 	return pte;
 }
 
@@ -290,9 +320,8 @@ alloc_read_gpt_header(int fd, uint64_t lba)
  * Description: returns 1 if valid,  0 on error.
  * If valid, returns pointers to newly allocated GPT header and PTEs.
  */
-static int
-is_gpt_valid(int fd, uint64_t lba,
-	     gpt_header ** gpt, gpt_entry ** ptes)
+static int is_gpt_valid(int fd, uint64_t lba, gpt_header **gpt,
+			gpt_entry **ptes, unsigned int ns)
 {
 	int rc = 0;		/* default to not valid */
 	uint32_t crc, origcrc;
@@ -346,28 +375,16 @@ is_gpt_valid(int fd, uint64_t lba,
 		return 0;
 	}
 
-	if (!(*ptes = alloc_read_gpt_entries(fd, *gpt))) {
+	if (!(*ptes = alloc_read_gpt_entries(fd, *gpt, ns))) {
 		free(*gpt);
 		*gpt = NULL;
-		return 0;
-	}
-
-	/* Check the GUID Partition Entry Array CRC */
-	crc = efi_crc32(*ptes,
-			__le32_to_cpu((*gpt)->num_partition_entries) *
-			__le32_to_cpu((*gpt)->sizeof_partition_entry));
-	if (crc != __le32_to_cpu((*gpt)->partition_entry_array_crc32)) {
-		// printf("GUID Partition Entry Array CRC check failed.\n");
-		free(*gpt);
-		*gpt = NULL;
-		free(*ptes);
-		*ptes = NULL;
 		return 0;
 	}
 
 	/* We're done, all's well */
 	return 1;
 }
+
 /**
  * compare_gpts() - Search disk for valid GPT headers and PTEs
  * @pgpt is the primary GPT header
@@ -489,8 +506,7 @@ compare_gpts(gpt_header *pgpt, gpt_header *agpt, uint64_t lastlba)
  * Validity depends on finding either the Primary GPT header and PTEs valid,
  * or the Alternate GPT header and PTEs valid, and the PMBR valid.
  */
-static int
-find_valid_gpt(int fd, gpt_header ** gpt, gpt_entry ** ptes)
+static int find_valid_gpt(int fd, gpt_header **gpt, gpt_entry **ptes, unsigned int ns)
 {
 	int good_pgpt = 0, good_agpt = 0, good_pmbr = 0;
 	gpt_header *pgpt = NULL, *agpt = NULL;
@@ -503,20 +519,17 @@ find_valid_gpt(int fd, gpt_header ** gpt, gpt_entry ** ptes)
 
 	if (!(lastlba = last_lba(fd)))
 		return 0;
-	good_pgpt = is_gpt_valid(fd, GPT_PRIMARY_PARTITION_TABLE_LBA,
-				 &pgpt, &pptes);
+	good_pgpt = is_gpt_valid(fd, GPT_PRIMARY_PARTITION_TABLE_LBA, &pgpt,
+				 &pptes, ns);
 	if (good_pgpt) {
-		good_agpt = is_gpt_valid(fd,
-					 __le64_to_cpu(pgpt->alternate_lba),
-					 &agpt, &aptes);
+		good_agpt = is_gpt_valid(fd, __le64_to_cpu(pgpt->alternate_lba),
+					 &agpt, &aptes, ns);
 		if (!good_agpt) {
-			good_agpt = is_gpt_valid(fd, lastlba,
-						 &agpt, &aptes);
+			good_agpt = is_gpt_valid(fd, lastlba, &agpt, &aptes, ns);
 		}
 	}
 	else {
-		good_agpt = is_gpt_valid(fd, lastlba,
-					 &agpt, &aptes);
+		good_agpt = is_gpt_valid(fd, lastlba, &agpt, &aptes, ns);
 	}
 
 	/* The obviously unsuccessful case */
@@ -609,7 +622,7 @@ read_gpt_pt (int fd, __attribute__((unused)) struct slice all,
 	int last_used_index = -1;
 	int sector_size_mul = get_sector_size(fd)/512;
 
-	if (!find_valid_gpt (fd, &gpt, &ptes) || !gpt || !ptes) {
+	if (!find_valid_gpt(fd, &gpt, &ptes, ns) || !gpt || !ptes) {
 		if (gpt)
 			free (gpt);
 		if (ptes)
