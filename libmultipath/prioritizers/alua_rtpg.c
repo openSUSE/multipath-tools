@@ -259,20 +259,6 @@ get_target_port_group(const struct path * pp)
 	scsi_buflen = get_unaligned_be16(&buf[2]) + 4;
 	if (scsi_buflen > VPD_BUFLEN)
 		scsi_buflen = VPD_BUFLEN;
-	if (rc < scsi_buflen) {
-		free(buf);
-		buf = (unsigned char *)malloc(scsi_buflen);
-		if (!buf) {
-			PRINT_DEBUG("malloc failed: could not allocate"
-				    "%u bytes", scsi_buflen);
-			return -RTPG_RTPG_FAILED;
-		}
-		buflen = scsi_buflen;
-		memset(buf, 0, buflen);
-		rc = do_inquiry(pp, 1, 0x83, buf, buflen);
-		if (rc < 0)
-			goto out;
-	}
 
 	data_len = rc;
 	if (data_len < scsi_buflen)
