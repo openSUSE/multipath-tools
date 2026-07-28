@@ -293,8 +293,8 @@ out:
 	return rc;
 }
 
-int
-do_rtpg(int fd, void* resp, long resplen, unsigned int timeout_ms)
+int do_rtpg(int fd, void *resp, long resplen, unsigned int timeout_ms,
+	    unsigned int *len_p)
 {
 	struct rtpg_command	cmd;
 	struct sg_io_hdr	hdr;
@@ -335,6 +335,11 @@ retry:
 		PRINT_DEBUG("do_rtpg: retries exhausted!");
 		return -RTPG_RTPG_FAILED;
 	}
+	if (hdr.resid < 0 || (unsigned int)hdr.resid > hdr.dxfer_len)
+		/* resid failed sanity check*/
+		return -RTPG_RTPG_FAILED;
+	if (len_p)
+		*len_p = hdr.dxfer_len - hdr.resid;
 	PRINT_HEX(resp, resplen);
 
 	return 0;
@@ -343,11 +348,10 @@ retry:
 int
 get_asymmetric_access_state(const struct path *pp, unsigned int tpg)
 {
-	unsigned char		*buf;
-	struct rtpg_data *	tpgd;
+	unsigned char *buf;
 	struct rtpg_tpg_dscr *	dscr;
 	int			rc;
-	unsigned int		buflen;
+	unsigned int buflen, data_len;
 	uint64_t		scsi_buflen;
 	unsigned int		timeout_ms = get_prio_timeout_ms(pp);
 	int fd = pp->fd;
@@ -360,9 +364,14 @@ get_asymmetric_access_state(const struct path *pp, unsigned int tpg)
 		return -RTPG_RTPG_FAILED;
 	}
 	memset(buf, 0, buflen);
-	rc = do_rtpg(fd, buf, buflen, timeout_ms);
+	rc = do_rtpg(fd, buf, buflen, timeout_ms, &data_len);
 	if (rc < 0) {
 		PRINT_DEBUG("%s: do_rtpg returned %d", __func__, rc);
+		goto out;
+	}
+	if (data_len < 4) {
+		PRINT_DEBUG("do_rtpg only returned %u bytes", data_len);
+		rc = -RTPG_RTPG_FAILED;
 		goto out;
 	}
 	scsi_buflen = get_unaligned_be32(&buf[0]) + 4;
@@ -378,14 +387,19 @@ get_asymmetric_access_state(const struct path *pp, unsigned int tpg)
 		}
 		buflen = scsi_buflen;
 		memset(buf, 0, buflen);
-		rc = do_rtpg(fd, buf, buflen, timeout_ms);
+		rc = do_rtpg(fd, buf, buflen, timeout_ms, &data_len);
 		if (rc < 0)
 			goto out;
 	}
+	if ((uint64_t)data_len < get_unaligned_be32(&buf[0]) + 4)
+		PRINT_DEBUG("rtpg data truncated. Read %u of %" PRIu64 " bytes",
+			    data_len, (uint64_t)get_unaligned_be32(&buf[0]) + 4);
 
-	tpgd = (struct rtpg_data *) buf;
 	rc   = -RTPG_TPG_NOT_FOUND;
-	RTPG_FOR_EACH_PORT_GROUP(tpgd, dscr) {
+	for (dscr = (struct rtpg_tpg_dscr *)&buf[4];
+	     (unsigned char *)(dscr + 1) <= buf + data_len &&
+	     (unsigned char *)(dscr->data + dscr->port_count) <= buf + data_len;
+	     dscr = (struct rtpg_tpg_dscr *)(dscr->data + dscr->port_count)) {
 		if (get_unaligned_be16(dscr->tpg) == tpg) {
 			if (rc != -RTPG_TPG_NOT_FOUND) {
 				PRINT_DEBUG("get_asymmetric_access_state: "
