@@ -179,9 +179,12 @@ retry:
 		PRINT_DEBUG("do_inquiry: retries exhausted!");
 		return -RTPG_INQUIRY_FAILED;
 	}
+	if (hdr.resid < 0 || (unsigned int)hdr.resid > hdr.dxfer_len)
+		/* resid failed sanity check*/
+		return -RTPG_RTPG_FAILED;
 	PRINT_HEX((unsigned char *) resp, resplen);
 
-	return 0;
+	return (int)hdr.dxfer_len - hdr.resid;
 }
 
 int do_inquiry(const struct path *pp, int evpd, unsigned int codepage,
@@ -203,7 +206,7 @@ int do_inquiry(const struct path *pp, int evpd, unsigned int codepage,
 
 		if (rc >= 0) {
 			PRINT_HEX((unsigned char *) resp, resplen);
-			return 0;
+			return rc;
 		}
 	}
 	return do_inquiry_sg(pp->fd, evpd, codepage, resp, resplen,
@@ -222,20 +225,18 @@ get_target_port_group_support(const struct path *pp)
 
 	memset((unsigned char *)&inq, 0, sizeof(inq));
 	rc = do_inquiry(pp, 0, 0x00, &inq, sizeof(inq));
-	if (!rc) {
-		rc = inquiry_data_get_tpgs(&inq);
-	}
-
-	return rc;
+	if (rc > (int)offsetof(struct inquiry_data, b5))
+		return inquiry_data_get_tpgs(&inq);
+	else
+		return -RTPG_INQUIRY_FAILED;
 }
 
 int
 get_target_port_group(const struct path * pp)
 {
-	unsigned char		*buf;
-	const struct vpd83_data *	vpd83;
+	unsigned char *buf;
 	const struct vpd83_dscr *	dscr;
-	int			rc;
+	int rc, data_len;
 	int			buflen, scsi_buflen;
 
 	buflen = VPD_BUFLEN;
@@ -251,10 +252,15 @@ get_target_port_group(const struct path * pp)
 	if (rc < 0)
 		goto out;
 
+	if (rc < 4) {
+		PRINT_DEBUG("do_inquiry only returned %d bytes", rc);
+		rc = -RTPG_RTPG_FAILED;
+		goto out;
+	}
 	scsi_buflen = get_unaligned_be16(&buf[2]) + 4;
-	if (scsi_buflen >= USHRT_MAX)
-		scsi_buflen = USHRT_MAX;
-	if (buflen < scsi_buflen) {
+	if (scsi_buflen > VPD_BUFLEN)
+		scsi_buflen = VPD_BUFLEN;
+	if (rc < scsi_buflen) {
 		free(buf);
 		buf = (unsigned char *)malloc(scsi_buflen);
 		if (!buf) {
@@ -269,14 +275,27 @@ get_target_port_group(const struct path * pp)
 			goto out;
 	}
 
-	vpd83 = (struct vpd83_data *) buf;
+	data_len = rc;
+	if (data_len < scsi_buflen)
+		PRINT_DEBUG("inquiry data trucated. Read %d of %d bytes",
+			    data_len, scsi_buflen);
 	rc = -RTPG_NO_TPG_IDENTIFIER;
-	FOR_EACH_VPD83_DSCR(vpd83, dscr) {
+	for (dscr = (const struct vpd83_dscr *)&buf[4];
+	     (const unsigned char *)(dscr + 1) <= buf + data_len &&
+	     dscr->data + dscr->length <= buf + data_len;
+	     dscr = (const struct vpd83_dscr *)(dscr->data + dscr->length)) {
 		if (vpd83_dscr_istype(dscr, IDTYPE_TARGET_PORT_GROUP)) {
 			const struct vpd83_tpg_dscr *p;
 			if (rc != -RTPG_NO_TPG_IDENTIFIER) {
 				PRINT_DEBUG("get_target_port_group: more "
 					    "than one TPG identifier found!");
+				continue;
+			}
+			if (dscr->length < sizeof(struct vpd83_tpg_dscr)) {
+				PRINT_DEBUG("%s: descr->length too small. "
+					    "got %u. need %zu",
+					    __func__, dscr->length,
+					    sizeof(struct vpd83_tpg_dscr));
 				continue;
 			}
 			p  = (const struct vpd83_tpg_dscr *)dscr->data;
