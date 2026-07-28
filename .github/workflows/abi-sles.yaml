@@ -14,7 +14,6 @@ on:
     branches:
       - 'sles-*'
   workflow_dispatch:
-
 jobs:
   reference-abi:
     runs-on: ubuntu-24.04
@@ -23,9 +22,10 @@ jobs:
         run: >
           echo ${{ github.ref }} |
           sed -E 's,refs/heads/(.*),PARENT_TAG=\1-ga,' >> $GITHUB_ENV
+        if: env.PARENT_TAG == ''
       - name: assert parent tag
         run: /bin/false
-        if: ${{ env.PARENT_TAG == '' }}
+        if: env.PARENT_TAG == ''
       - name: update
         run: sudo apt-get update
       - name: dependencies
@@ -55,13 +55,15 @@ jobs:
         run: >
           echo ${{ github.ref }} |
           sed -E 's,refs/heads/(.*),PARENT_TAG=\1-ga,' >> $GITHUB_ENV
+        if: env.PARENT_TAG == ''
       - name: assert parent tag
         run: /bin/false
-        if: ${{ env.PARENT_TAG == '' }}
+        if: env.PARENT_TAG == ''
       - name: checkout ${{ env.PARENT_TAG }}
         uses: actions/checkout@v7
         with:
           ref: ${{ github.ref }}
+          fetch-tags: true
       - name: download ABI for ${{ env.PARENT_TAG }}
         id: download_abi
         uses: actions/download-artifact@v7
@@ -78,16 +80,51 @@ jobs:
           libdevmapper-dev libreadline-dev libaio-dev libsystemd-dev
           libudev-dev libjson-c-dev liburcu-dev libcmocka-dev libedit-dev
           libmount-dev
-      - name: check ABI of ${{ github.ref }} against ${{ env.PARENT_TAG }}
+      - name: check ABI of ${{ github.ref_name }} against ${{ env.PARENT_TAG }}
         id: check_abi
         run: make -j$(nproc) -Orecurse abi-test
         continue-on-error: true
       - name: save differences
-        if: ${{ steps.check_abi.outcome != 'success' }}
+        if: steps.check_abi.outcome != 'success'
         uses: actions/upload-artifact@v7
         with:
           name: abi-test
           path: abi-test
-      - name: fail
-        run: /bin/false
+      - name: Fetch ${{ env.PARENT_TAG }}
         if: steps.check_abi.outcome != 'success'
+        run: >-
+          git fetch --depth=1 origin \
+              "refs/tags/$PARENT_TAG:refs/tags/$PARENT_TAG"
+      - name: Check library versioning ${{ env.PARENT_TAG }}..${{ github.ref_name }}
+        if: steps.check_abi.outcome != 'success'
+        # Check for the "ABI differences in ..." heading in abi-test.
+        # For each library that differs, make sure that the respective
+        # .version file has changes in the library version(s) supported.
+        run: |
+          ABI_ERROR=()
+          while read l; do
+              ll=$l/$l.version
+              echo "Checking ABI differences in $l ..."
+              diff -u \
+                  <(git show "$PARENT_TAG:$ll" |
+                      sed -nE 's,^([A-Z][-_.0-9A-Za-z]*) *\{,\1,p') \
+                  <(git show "HEAD:$ll" |
+                      sed -nE 's,^([A-Z][-_.0-9A-Za-z]*) *\{,\1,p') || {
+                  case $? in
+                  1)
+                      echo "... library versions differ, OK"
+                      continue
+                      ;;
+                  *)
+                      echo "... error in diff!"
+                      ERROR=$l
+                      ;;
+                  esac
+              }
+              echo "... library versions do not differ!"
+              ABI_ERROR=("${ABI_ERROR[@]}" $l)
+          done < \
+             <(sed -En 's,^=* ABI differences.*/([-_a-z.]*)-nv\.abi =*,\1,p' \
+               abi-test)
+          echo "${#ABI_ERROR[@]} ABI errors in ${ABI_ERROR[@]}"
+          [[ ${#ABI_ERROR[@]} == 0 && ! $ERROR ]]
