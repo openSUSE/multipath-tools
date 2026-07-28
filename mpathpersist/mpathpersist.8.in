@@ -1,8 +1,4 @@
 .\" ----------------------------------------------------------------------------
-.\" Make sure there are no errors with:
-.\" groff -z -wall -b -e -t mpathpersist/mpathpersist.8
-.\" man --warnings -E UTF-8 -l -Tutf8 -Z mpathpersist/mpathpersist.8 > /dev/null
-.\"
 .\" Update the date below if you make any significant change.
 .\" ----------------------------------------------------------------------------
 .
@@ -50,7 +46,7 @@ various options.
 .BI \-verbose|\-v " level"
 Verbosity:
 .RS
-.TP 5
+.TP
 .I 0
 Critical messages.
 .TP

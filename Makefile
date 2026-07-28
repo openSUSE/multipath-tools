@@ -113,6 +113,7 @@ clean:
 	@touch config.mk
 	$(Q)$(MAKE) $(BUILDDIRS:=.clean) tests.clean || true
 	$(Q)$(RM) -r abi abi.tar.gz abi-test config.mk
+	$(Q)$(RM) test-progs.* test-outputs.*
 
 install: $(BUILDDIRS:=.install)
 uninstall: $(BUILDDIRS:=.uninstall)
@@ -126,15 +127,21 @@ test:	all
 valgrind-test:	all
 	@$(MAKE) -C tests valgrind
 
-TEST-ARTIFACTS := config.mk Makefile.inc \
+TEST-ARTIFACTS := config.mk Makefile Makefile.inc \
 	$(LIB_BUILDDIRS:%=%/*.so*) $(PLUGIN_BUILDDIRS:%=%/*.so) \
-	tests/Makefile tests/*.so* tests/lib/* tests/*-test 
+	tests/Makefile tests/*.so* tests/lib/* tests/*-test
 
 test-progs.cpio: test-progs
-	@printf "%s\\n" $(TEST-ARTIFACTS) | cpio -o -H crc >$@
+	$(Q)printf "%s\\n" $(TEST-ARTIFACTS) | cpio -o -H crc >$@
 
 test-progs.tar: test-progs
-	@tar cf $@ $(TEST-ARTIFACTS)
+	$(Q)tar cf $@ $(TEST-ARTIFACTS)
+
+test-outputs.cpio: $(wildcard tests/*.out) $(wildcard tests/*.vgr) $(wildcard tests/core*)
+	$(Q)printf "%s\\n" $^ | cpio -o -H crc >$@
+
+test-outputs.tar: $(wildcard tests/*.out) $(wildcard tests/*.vgr) $(wildcard tests/core*)
+	$(Q)tar cf "$@" $^ || touch $@
 
 .PHONY:	TAGS
 TAGS:

@@ -14,6 +14,11 @@ on:
       - master
       - queue
   workflow_dispatch:
+  # GitHub workflow artifacts expire every 90 days.
+  # Re-run this workflow every 2 months to make sure that we always
+  # have a reference ABI to compare.
+  schedule:
+    - cron: "27 5 10 2,4,6,8,10,12 *"
 env:
   ABI_BRANCH: ${{ secrets.ABI_BRANCH }}
 
@@ -22,14 +27,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: set ABI branch
-        if: ${{ env.ABI_BRANCH == '' }}
+        if: env.ABI_BRANCH == ''
         run: echo "ABI_BRANCH=master" >> $GITHUB_ENV
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: get reference ABI
         id: reference
         continue-on-error: true
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v21
         with:
           workflow: abi.yaml
           branch: ${{ env.ABI_BRANCH }}
@@ -47,25 +52,24 @@ jobs:
       - name: create ABI
         run: make -Orecurse -j$(nproc) abi.tar.gz
       - name: save ABI
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: abi
           path: abi
           overwrite: true
-      - name: compare ABI against reference
+      - name: Compare ABI between ${{ env.ABI_BRANCH }} and ${{ github.ref_name }}
         id: compare
         continue-on-error: true
-        if: ${{ steps.reference.outcome == 'success' }}
+        if: steps.reference.outcome == 'success'
         run: make abi-test
       - name: save differences
-        if: ${{ steps.compare.outcome == 'failure' }}
-        uses: actions/upload-artifact@v4
+        if: steps.compare.outcome == 'failure'
+        uses: actions/upload-artifact@v7
         with:
           name: abi-test
           path: abi-test
           overwrite: true
-
-      - name: fail
+      - name: Record failure
         # MUST use >- here, otherwise the condition always evaluates to true
         if: >-
           ${{
@@ -73,4 +77,43 @@ jobs:
               (steps.reference.outcome == 'failure' ||
                steps.compare.outcome == 'failure')
           }}
-        run: false
+        run: echo "FAILURE=1" >> $GITHUB_ENV
+      - name: Fetch ${{ env.ABI_BRANCH }}
+        run: |
+          echo "${{ env.ABI_BRANCH }}" | base64
+          echo "$ABI_BRANCH" | base64
+          git fetch --depth=1 origin ${{ env.ABI_BRANCH }}
+        if: env.FAILURE != ''
+      - name: Compare library versions of ${{ env.ABI_BRANCH }} and ${{ github.ref_name }}
+        if: env.FAILURE != ''
+        # Check for the "ABI differences in ..." heading in abi-test.
+        # For each library that differs, make sure that the respective
+        # .version file has changes in the library version(s) supported.
+        run: |
+          ABI_ERROR=()
+          while read l; do
+              ll=$l/$l.version
+              echo "Checking ABI differences in $l ..."
+              diff -u \
+                  <(git show "origin/$ABI_BRANCH:$ll" |
+                      sed -nE 's,^([A-Z][-_.0-9A-Za-z]*) *\{,\1,p') \
+                  <(git show "HEAD:$ll" |
+                      sed -nE 's,^([A-Z][-_.0-9A-Za-z]*) *\{,\1,p') || {
+                  case $? in
+                  1)
+                      echo "... library versions differ, OK"
+                      continue
+                      ;;
+                  *)
+                      echo "... error in diff!"
+                      ERROR=$l
+                      ;;
+                  esac
+              }
+              echo "... library versions do not differ!"
+              ABI_ERROR=("${ABI_ERROR[@]}" $l)
+          done < \
+             <(sed -En 's,^=* ABI differences.*/([-_a-z.]*)-nv\.abi =*,\1,p' \
+               abi-test)
+          echo "${#ABI_ERROR[@]} ABI errors in ${ABI_ERROR[@]}"
+          [[ ${#ABI_ERROR[@]} == 0 && ! $ERROR ]]
