@@ -65,14 +65,13 @@ typedef unsigned int __attribute__((__may_alias__)) label_ints_t;
 
 /*
  */
-int
-read_dasd_pt(int fd, __attribute__((unused)) struct slice all,
-	     struct slice *sp, __attribute__((unused)) unsigned int ns)
+int read_dasd_pt(int fd, __attribute__((unused)) struct slice all,
+		 struct slice *sp, unsigned int ns)
 {
 	int retval = -1;
 	int blocksize;
 	uint64_t disksize;
-	uint64_t offset, size, fmt_size;
+	uint64_t offset, size, fmt_size, start;
 	dasd_information_t info;
 	struct hd_geometry geo;
 	char type[5] = {0,};
@@ -205,6 +204,8 @@ read_dasd_pt(int fd, __attribute__((unused)) struct slice all,
 		label_ints_t *label = (label_ints_t *) &vlabel;
 
 		blocksize = label[4];
+		if (blocksize < 512 || blocksize > 4096)
+			goto out;
 		if (label[14] != 0) {
 			/* disk is reserved minidisk */
 			offset = label[14];
@@ -213,8 +214,11 @@ read_dasd_pt(int fd, __attribute__((unused)) struct slice all,
 			offset = info.label_block + 1;
 			size   = sectors512(label[8], blocksize);
 		}
-		sp[0].start = sectors512(offset, blocksize);
-		sp[0].size  = size - sp[0].start;
+		start = sectors512(offset, blocksize);
+		if (start >= size)
+			goto out;
+		sp[0].start = start;
+		sp[0].size = size - start;
 		retval = 1;
 	} else if ((strncmp(type, "VOL1", 4) == 0) &&
 		(!info.FBA_layout) && (!memcmp(info.type, "ECKD",4))) {
@@ -229,7 +233,7 @@ read_dasd_pt(int fd, __attribute__((unused)) struct slice all,
 		if (lseek(fd_dasd, blk * blocksize, SEEK_SET) == -1)
 			goto out;
 
-		while (read(fd_dasd, data, blocksize) != -1) {
+		while (read(fd_dasd, data, blocksize) > 0) {
 			format1_label_t f1;
 
 			memcpy(&f1, data, sizeof(format1_label_t));
@@ -255,6 +259,8 @@ read_dasd_pt(int fd, __attribute__((unused)) struct slice all,
 			sp[counter].start = sectors512(offset, blocksize);
 			sp[counter].size  = sectors512(size, blocksize);
 			counter++;
+			if ((unsigned int)counter >= ns)
+				break;
 			blk++;
 		}
 		retval = counter;
@@ -285,8 +291,11 @@ read_dasd_pt(int fd, __attribute__((unused)) struct slice all,
 		} else
 			size = disksize;
 
-		sp[0].start = sectors512(info.label_block + 1, blocksize);
-		sp[0].size  = size - sp[0].start;
+		start = sectors512(info.label_block + 1, blocksize);
+		if (start >= size)
+			goto out;
+		sp[0].start = start;
+		sp[0].size = size - start;
 		retval = 1;
 	}
 
