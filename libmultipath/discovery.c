@@ -1921,7 +1921,7 @@ static int has_uid_fallback(struct path *pp)
 int
 get_uid (struct path * pp, int path_state, struct udev_device *udev)
 {
-	char *c;
+	int i;
 	const char *origin = "unknown";
 	ssize_t len = 0;
 	struct config *conf;
@@ -1980,13 +1980,16 @@ get_uid (struct path * pp, int path_state, struct udev_device *udev)
 			pp->dev, origin, strerror(-len));
 		memset(pp->wwid, 0x0, WWID_SIZE);
 		return 1;
+	} else if (strcmp(pp->wwid, ".") == 0 || strcmp(pp->wwid, "..") == 0) {
+		condlog(2, "%s: %s uid '%s' in not valid", pp->dev, origin,
+			pp->wwid);
+		memset(pp->wwid, 0x0, WWID_SIZE);
+		return 1;
 	} else {
-		/* Strip any trailing blanks */
-		c = strchr(pp->wwid, '\0');
-		c--;
-		while (c && c >= pp->wwid && *c == ' ') {
-			*c = '\0';
-			c--;
+		strchop(pp->wwid);
+		for (i = 0; pp->wwid[i] != '\0'; i++) {
+			if (pp->wwid[i] == '/')
+				pp->wwid[i] = '_';
 		}
 	}
 	condlog(3, "%s: uid = %s (%s)", pp->dev,
