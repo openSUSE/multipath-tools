@@ -315,7 +315,6 @@ alloc_read_gpt_header(int fd, uint64_t lba)
 static int is_gpt_valid(int fd, uint64_t lba, gpt_header **gpt,
 			gpt_entry **ptes, unsigned int ns)
 {
-	int rc = 0;		/* default to not valid */
 	uint32_t crc, origcrc, header_size;
 
 	if (!gpt || !ptes)
@@ -329,9 +328,7 @@ static int is_gpt_valid(int fd, uint64_t lba, gpt_header **gpt,
 		   printf("GUID Partition Table Header signature is wrong: %" PRIx64" != %" PRIx64 "\n",
 		   __le64_to_cpu((*gpt)->signature), GUID_PT_HEADER_SIGNATURE);
 		 */
-		free(*gpt);
-		*gpt = NULL;
-		return rc;
+		goto fail;
 	}
 
 	/* Check the GUID Partition Table Header CRC */
@@ -339,18 +336,13 @@ static int is_gpt_valid(int fd, uint64_t lba, gpt_header **gpt,
 	header_size = __le32_to_cpu((*gpt)->header_size);
 	if (header_size < 92 || header_size > (uint32_t)get_sector_size(fd)) {
 		// printf("GPT Header size (%" PRIu32 ") is invalid\n", header_size);
-		free(*gpt);
-		*gpt = NULL;
-		return 0;
+		goto fail;
 	}
 	(*gpt)->header_crc32 = 0;
 	crc = efi_crc32(*gpt, header_size);
 	if (crc != origcrc) {
 		// printf( "GPTH CRC check failed, %x != %x.\n", origcrc, crc);
-		(*gpt)->header_crc32 = __cpu_to_le32(origcrc);
-		free(*gpt);
-		*gpt = NULL;
-		return 0;
+		goto fail;
 	}
 	(*gpt)->header_crc32 = __cpu_to_le32(origcrc);
 
@@ -361,27 +353,27 @@ static int is_gpt_valid(int fd, uint64_t lba, gpt_header **gpt,
 		printf( "my_lba % PRIx64 "x != lba %"PRIx64 "x.\n",
 				__le64_to_cpu((*gpt)->my_lba), lba);
 		 */
-		free(*gpt);
-		*gpt = NULL;
-		return 0;
+		goto fail;
 	}
 
 	/* Check that sizeof_partition_entry has the correct value */
 	if (__le32_to_cpu((*gpt)->sizeof_partition_entry) != sizeof(gpt_entry)) {
 		// printf("GUID partition entry size check failed.\n");
-		free(*gpt);
-		*gpt = NULL;
-		return 0;
+		goto fail;
 	}
 
 	if (!(*ptes = alloc_read_gpt_entries(fd, *gpt, ns))) {
-		free(*gpt);
-		*gpt = NULL;
-		return 0;
+		goto fail;
 	}
 
 	/* We're done, all's well */
 	return 1;
+
+fail:
+	free(*gpt);
+	*gpt = NULL;
+	*ptes = NULL;
+	return 0;
 }
 
 /**
