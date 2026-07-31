@@ -204,6 +204,7 @@ read_lastoddsector(int fd, uint64_t lba, void *buffer, size_t count)
 	return !rc;
 }
 
+/* This function returns 0 for failure and 1 for success */
 static ssize_t
 read_lba(int fd, uint64_t lba, void *buffer, size_t bytes)
 {
@@ -214,11 +215,14 @@ read_lba(int fd, uint64_t lba, void *buffer, size_t bytes)
 
 	if (lseek(fd, offset, SEEK_SET) < 0)
 		return 0;
-	bytesread = read(fd, buffer, bytes);
+	while ((bytesread = read(fd, buffer, bytes)) < 0) {
+		if (errno != EINTR && errno != EAGAIN)
+			return 0;
+	}
 
 	lastlba = last_lba(fd);
 	if (!lastlba)
-		return bytesread;
+		return (bytesread == (ssize_t)bytes);
 
 	/* Kludge.  This is necessary to read/write the last
 	   block of an odd-sized disk, until Linux 2.5.x kernel fixes.
@@ -543,12 +547,11 @@ find_valid_gpt(int fd, gpt_header ** gpt, gpt_entry ** ptes)
 	}
 
 	/* This will be added to the EFI Spec. per Intel after v1.02. */
-	legacymbr = malloc(sizeof (*legacymbr));
+	legacymbr = malloc(sizeof(*legacymbr));
 	if (legacymbr) {
-		memset(legacymbr, 0, sizeof (*legacymbr));
-		read_lba(fd, 0, (uint8_t *) legacymbr,
-			 sizeof (*legacymbr));
-		good_pmbr = is_pmbr_valid(legacymbr);
+		memset(legacymbr, 0, sizeof(*legacymbr));
+		if (read_lba(fd, 0, (uint8_t *)legacymbr, sizeof(*legacymbr)))
+			good_pmbr = is_pmbr_valid(legacymbr);
 		free(legacymbr);
 		legacymbr=NULL;
 	}
