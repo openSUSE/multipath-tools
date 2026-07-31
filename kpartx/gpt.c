@@ -316,7 +316,7 @@ static int is_gpt_valid(int fd, uint64_t lba, gpt_header **gpt,
 			gpt_entry **ptes, unsigned int ns)
 {
 	int rc = 0;		/* default to not valid */
-	uint32_t crc, origcrc;
+	uint32_t crc, origcrc, header_size;
 
 	if (!gpt || !ptes)
 		return 0;
@@ -336,8 +336,15 @@ static int is_gpt_valid(int fd, uint64_t lba, gpt_header **gpt,
 
 	/* Check the GUID Partition Table Header CRC */
 	origcrc = __le32_to_cpu((*gpt)->header_crc32);
+	header_size = __le32_to_cpu((*gpt)->header_size);
+	if (header_size < 92 || header_size > (uint32_t)get_sector_size(fd)) {
+		// printf("GPT Header size (%" PRIu32 ") is invalid\n", header_size);
+		free(*gpt);
+		*gpt = NULL;
+		return 0;
+	}
 	(*gpt)->header_crc32 = 0;
-	crc = efi_crc32(*gpt, __le32_to_cpu((*gpt)->header_size));
+	crc = efi_crc32(*gpt, header_size);
 	if (crc != origcrc) {
 		// printf( "GPTH CRC check failed, %x != %x.\n", origcrc, crc);
 		(*gpt)->header_crc32 = __cpu_to_le32(origcrc);
