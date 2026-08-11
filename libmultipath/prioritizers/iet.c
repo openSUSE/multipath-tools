@@ -119,7 +119,6 @@ static uint32_t prefix_to_mask(int prefix)
 // @return mask: mask as integer
 static int parse_cidr(const char *s, uint32_t *network, uint32_t *mask)
 {
-	char ipstr[32];
 	char *slash;
 	char *endptr;
 	long val;
@@ -128,9 +127,7 @@ static int parse_cidr(const char *s, uint32_t *network, uint32_t *mask)
 	char extra;
 	int count;
 
-	strlcpy(ipstr, s, sizeof(ipstr));
-
-	slash = strchr(ipstr, '/');
+	slash = strchr(s, '/');
 
 	if (slash) {
 
@@ -149,10 +146,10 @@ static int parse_cidr(const char *s, uint32_t *network, uint32_t *mask)
 		/* no CIDR suffix -> exact host match */
 		prefix = 32;
 
-	count = sscanf(ipstr, "%u.%u.%u.%u%c", &o[0], &o[1], &o[2], &o[3], &extra);
+	count = sscanf(s, "%u.%u.%u.%u%c", &o[0], &o[1], &o[2], &o[3], &extra);
 	if (count < 1 || count > 4 || o[0] > 255 || o[1] > 255 || o[2] > 255 ||
 	    o[3] > 255 || (prefix > 24 && count < 4) ||
-        (prefix > 16 && count < 3) || (prefix > 8 && count < 2)
+        (prefix > 16 && count < 3) || (prefix > 8 && count < 2))
 		return -1;
 
 	*mask = prefix_to_mask(prefix);
@@ -179,18 +176,11 @@ static void free_ipprio_list(struct ipprio_entry *list)
 // name: parse_ippriorities
 // @param args: full prio_args string
 // @return: 0 if ok -1 if not
-static struct ipprio_entry *parse_ippriorities(const char *args)
+static struct ipprio_entry *parse_ippriorities(char *buf)
 {
-	char *buf, *entry, *saveptr = NULL;
+	char *entry, *saveptr = NULL;
 	struct ipprio_entry *ipprio_list = NULL;
 	bool not_first = false;
-
-	if (!args || strncmp(args, "preferredip=", 11) != 0)
-		return NULL;
-
-	buf = strdup(args + 12);
-	if (!buf)
-		return NULL;
 
 	entry = strtok_r(buf, ",", &saveptr);
 
@@ -253,11 +243,9 @@ static struct ipprio_entry *parse_ippriorities(const char *args)
 			entry = strtok_r(NULL, ",", &saveptr);
 	}
 
-	free(buf);
 	return ipprio_list;
 
 error_cleanup:
-	free(buf);
 	free_ipprio_list(ipprio_list);
 	return NULL;
 }
@@ -299,16 +287,16 @@ static int find_priority(const char *sysname, const char *ipstr,
 
 		int prefix = __builtin_popcount(e->mask);
 
-		if ((ip & e->mask) == e->network) {
+        if (libmp_verbosity > 3) {
+            netaddr.s_addr = htonl(e->network);
+            maskaddr.s_addr = htonl(e->mask);
+            inet_ntop(AF_INET, &netaddr, net_buf,
+                 sizeof(net_buf));
+            inet_ntop(AF_INET, &maskaddr, mask_buf,
+                 sizeof(mask_buf));
+		}
 
-			if (libmp_verbosity > 3) {
-				netaddr.s_addr = htonl(e->network);
-				maskaddr.s_addr = htonl(e->mask);
-				inet_ntop(AF_INET, &netaddr, net_buf,
-					  sizeof(net_buf));
-				inet_ntop(AF_INET, &maskaddr, mask_buf,
-					  sizeof(mask_buf));
-			}
+		if ((ip & e->mask) == e->network) {
 
 			dc_log(4, "find_priority: match ip=%s network=%s mask=%s priority=%d",
 			       ipstr, net_buf, mask_buf, e->priority);
@@ -368,7 +356,7 @@ int iet_prio(struct udev_device *udev, char *args)
 	// check args format and initialize list of CIDR/IPs
 	if (sscanf(args, "preferredip=%255s", preferredip) == 1) {
 
-		ipprio_list = parse_ippriorities(args);
+		ipprio_list = parse_ippriorities(preferredip);
 		if (!ipprio_list) {
 			if (!arg_logged) {
 				dc_log(2, "invalid prio_args preferredip");
@@ -390,6 +378,7 @@ int iet_prio(struct udev_device *udev, char *args)
 	by_path = udev_device_get_property_value(udev, "ID_PATH");
 	if (by_path == NULL) {
 		dc_log(2, "failed to get BY_PATH property");
+        free_ipprio_list(ipprio_list);
 		return 0;
 	}
 	condlog(3, "%s: iet prio: by_path=%s", sysname, by_path);
