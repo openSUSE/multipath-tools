@@ -149,7 +149,7 @@ static int parse_cidr(const char *s, uint32_t *network, uint32_t *mask)
 	count = sscanf(s, "%u.%u.%u.%u%c", &o[0], &o[1], &o[2], &o[3], &extra);
 	if (count < 1 || count > 4 || o[0] > 255 || o[1] > 255 || o[2] > 255 ||
 	    o[3] > 255 || (prefix > 24 && count < 4) ||
-        (prefix > 16 && count < 3) || (prefix > 8 && count < 2))
+	    (prefix > 16 && count < 3) || (prefix > 8 && count < 2))
 		return -1;
 
 	*mask = prefix_to_mask(prefix);
@@ -287,13 +287,11 @@ static int find_priority(const char *sysname, const char *ipstr,
 
 		int prefix = __builtin_popcount(e->mask);
 
-        if (libmp_verbosity > 3) {
-            netaddr.s_addr = htonl(e->network);
-            maskaddr.s_addr = htonl(e->mask);
-            inet_ntop(AF_INET, &netaddr, net_buf,
-                 sizeof(net_buf));
-            inet_ntop(AF_INET, &maskaddr, mask_buf,
-                 sizeof(mask_buf));
+		if (libmp_verbosity > 3) {
+			netaddr.s_addr = htonl(e->network);
+			maskaddr.s_addr = htonl(e->mask);
+			inet_ntop(AF_INET, &netaddr, net_buf, sizeof(net_buf));
+			inet_ntop(AF_INET, &maskaddr, mask_buf, sizeof(mask_buf));
 		}
 
 		if ((ip & e->mask) == e->network) {
@@ -378,7 +376,7 @@ int iet_prio(struct udev_device *udev, char *args)
 	by_path = udev_device_get_property_value(udev, "ID_PATH");
 	if (by_path == NULL) {
 		dc_log(2, "failed to get BY_PATH property");
-        free_ipprio_list(ipprio_list);
+		free_ipprio_list(ipprio_list);
 		return 0;
 	}
 	condlog(3, "%s: iet prio: by_path=%s", sysname, by_path);
