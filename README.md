@@ -14,6 +14,41 @@ This package provides the following binaries to drive the Device Mapper multipat
 * kpartx - Create device maps from partition tables.
 
 
+Code Repository, Branches, and Maintenance
+==========================================
+
+The code is maintained on GitHub in the
+[opensvc/multipath-tools](https://github.com/opensvc/multipath-tools)
+project. The latest major release is always found in the `master` branch in
+this project.
+
+Staging area
+------------
+
+Between releases, the latest reviewed code can be obtained from
+[the queue branch](https://github.com/openSUSE/multipath-tools/tree/queue)
+in the openSUSE/multipath-tools repository on GitHub. From there,
+pull requests for new releases in the master repository are
+created roughly every 3 months.
+
+Stable branches
+---------------
+
+Beginning with 0.10, there will be stable branches `stable-0.x.y` on
+opensvc/multipath-tools. Small bug fixes with low regression risk from will be
+cherry-picked to these branches from the staging area. These branches are
+maintained by the multipath-tools maintainers on a best-effort basis. From
+time to time, minor releases will be made on these branches.
+
+Reporting Bugs
+--------------
+
+For **security related bugs**, see [SECURITY.md](SECURITY.md).
+
+For **regular bugs**, send an email to the and the maintainers
+(see [Mailing list](#Mailing-list) below), or use the
+[issue tracker on GitHub](https://github.com/opensvc/multipath-tools/issues).
+
 Releases
 ========
 
