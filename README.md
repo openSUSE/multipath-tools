@@ -40,6 +40,15 @@ cherry-picked to these branches from the staging area. These branches are
 maintained by the multipath-tools maintainers on a best-effort basis. From
 time to time, minor releases will be made on these branches.
 
+Reporting Bugs
+--------------
+
+For **security related bugs**, see [SECURITY.md](SECURITY.md).
+
+For **regular bugs**, send an email to the and the maintainers
+(see [Mailing list](#Mailing-list) below), or use the
+[issue tracker on GitHub](https://github.com/opensvc/multipath-tools/issues).
+
 Releases
 ========
 
