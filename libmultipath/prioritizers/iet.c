@@ -147,9 +147,10 @@ static int parse_cidr(const char *s, uint32_t *network, uint32_t *mask)
 		prefix = 32;
 
 	count = sscanf(s, "%u.%u.%u.%u%c", &o[0], &o[1], &o[2], &o[3], &extra);
+	// Validate shorthand.
+	// prefix > count*8: the address part of the shorthand must contain at least the same number of bits as set by prefix.
 	if (count < 1 || count > 4 || o[0] > 255 || o[1] > 255 || o[2] > 255 ||
-	    o[3] > 255 || (prefix > 24 && count < 4) ||
-	    (prefix > 16 && count < 3) || (prefix > 8 && count < 2))
+	    o[3] > 255 || prefix > 8 * count)
 		return -1;
 
 	*mask = prefix_to_mask(prefix);
