@@ -10,6 +10,23 @@ mpathpersist - Manages SCSI persistent reservations on dm multipath devices.
 kpartx - Create device maps from partition tables.
 
 
+Code Repository, Branches, and Maintenance
+==========================================
+
+The code is maintained on GitHub in the
+opensvc/multipath-tools (https://github.com/opensvc/multipath-tools)
+project. The latest major release is always found in the master branch in
+this project.
+
+Reporting Bugs
+--------------
+
+For security related bugs, see SECURITY.md.
+
+For regular bugs, send an email to the and the maintainers
+(see Mailing list below), or use the
+issue tracker on GitHub (https://github.com/opensvc/multipath-tools/issues).
+
 Releases
 ========
 Tarballs are not generated anymore, to get a specific release do:
