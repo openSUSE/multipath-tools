@@ -31,7 +31,9 @@ See [README.md](README.md) for additional information.
 * [Heap Out-of-Bounds Read in Custom Format String Parser via Trailing `%`](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-g5mh-253r-jjw5)
 * [Heap out-of-bounds read in device-mapper-multipath ALUA RTPG parsing](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-pxwh-g75c-95pc)
 * [kpartx: Heap Out-of-Bounds Read in GPT Header Validation](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-p6rh-9x9j-3hvx)
-* [Path traversal in device-mapper-multipath failed_wwids management ](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-gr7q-prfc-q636)
+* [Path traversal in device-mapper-multipath failed_wwids management
+  ](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-gr7q-prfc-q636)
+* [libmpathpersist PRIN READ FULL STATUS parser — unbounded descriptor rewrite causes root heap overflow](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-hj7j-qr9h-5fv6)
 
 ### Bug fixes
 
