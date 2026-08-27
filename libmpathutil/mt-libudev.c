@@ -14,7 +14,6 @@ static pthread_mutex_t libudev_mutex = PTHREAD_MUTEX_INITIALIZER;
 		__r = func();						\
 		pthread_mutex_unlock(&libudev_mutex);			\
 		pthread_setcancelstate(__oldstate, NULL);		\
-		pthread_testcancel();					\
 		return __r;						\
 	}
 
@@ -27,7 +26,6 @@ static pthread_mutex_t libudev_mutex = PTHREAD_MUTEX_INITIALIZER;
 		__r = func(__arg1);						\
 		pthread_mutex_unlock(&libudev_mutex);			\
 		pthread_setcancelstate(__oldstate, NULL);		\
-		pthread_testcancel();					\
 		return __r;						\
 	}
 
@@ -40,7 +38,6 @@ static pthread_mutex_t libudev_mutex = PTHREAD_MUTEX_INITIALIZER;
 		__r = func(__arg1, __arg2);				\
 		pthread_mutex_unlock(&libudev_mutex);			\
 		pthread_setcancelstate(__oldstate, NULL);		\
-		pthread_testcancel();					\
 		return __r;						\
 	}
 
@@ -53,7 +50,6 @@ static pthread_mutex_t libudev_mutex = PTHREAD_MUTEX_INITIALIZER;
 		__r = func(__arg1, __arg2, __arg3);			\
 		pthread_mutex_unlock(&libudev_mutex);			\
 		pthread_setcancelstate(__oldstate, NULL);		\
-		pthread_testcancel();					\
 		return __r;						\
 	}
 
