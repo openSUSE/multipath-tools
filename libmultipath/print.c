@@ -1099,6 +1099,8 @@ int snprint_multipath_header(struct strbuf *line, const char *format,
 			return rc;
 
 		format = f + 1;
+		if (*format == '\0')
+			break; /* tailing '%' */
 		if ((iwc = mpd_lookup(*format)) == -1)
 			continue; /* unknown wildcard */
 		data = &mpd[iwc];
@@ -1130,6 +1132,8 @@ int snprint_multipath__(const struct gen_multipath *gmp,
 			return rc;
 
 		format = f + 1;
+		if (*format == '\0')
+			break; /* tailing '%' */
 		if ((iwc = mpd_lookup(*format)) == -1)
 			continue; /* unknown wildcard */
 
@@ -1160,6 +1164,8 @@ int snprint_path_header(struct strbuf *line, const char *format,
 			return rc;
 
 		format = f + 1;
+		if (*format == '\0')
+			break; /* tailing '%' */
 		if ((iwc = pd_lookup(*format)) == -1)
 			continue; /* unknown wildcard */
 		data = &pd[iwc];
@@ -1190,6 +1196,8 @@ int snprint_path__(const struct gen_path *gp, struct strbuf *line,
 			return rc;
 
 		format = f + 1;
+		if (*format == '\0')
+			break; /* tailing '%' */
 		if ((iwc = pd_lookup(*format)) == -1)
 			continue; /* unknown wildcard */
 
@@ -1217,6 +1225,8 @@ int snprint_pathgroup__(const struct gen_pathgroup *ggp, struct strbuf *line,
 			return rc;
 
 		format = f + 1;
+		if (*format == '\0')
+			break; /* tailing '%' */
 
 		if ((rc = ggp->ops->snprint(ggp, line, *format)) < 0)
 			return rc;
