@@ -193,6 +193,7 @@ read_lastoddsector(int fd, void *buffer, size_t count)
 	return !rc;
 }
 
+/* This function returns 0 for failure and 1 for success */
 static ssize_t
 read_lba(int fd, uint64_t lba, void *buffer, size_t bytes)
 {
@@ -203,11 +204,14 @@ read_lba(int fd, uint64_t lba, void *buffer, size_t bytes)
 
 	if (lseek(fd, offset, SEEK_SET) < 0)
 		return 0;
-	bytesread = read(fd, buffer, bytes);
+	while ((bytesread = read(fd, buffer, bytes)) < 0) {
+		if (errno != EINTR && errno != EAGAIN)
+			return 0;
+	}
 
 	lastlba = last_lba(fd);
 	if (!lastlba)
-		return bytesread;
+		return (bytesread == (ssize_t)bytes);
 
 	/* Kludge.  This is necessary to read/write the last
 	   block of an odd-sized disk, until Linux 2.5.x kernel fixes.
@@ -311,8 +315,7 @@ alloc_read_gpt_header(int fd, uint64_t lba)
 static int is_gpt_valid(int fd, uint64_t lba, gpt_header **gpt,
 			gpt_entry **ptes, unsigned int ns)
 {
-	int rc = 0;		/* default to not valid */
-	uint32_t crc, origcrc;
+	uint32_t crc, origcrc, header_size;
 
 	if (!gpt || !ptes)
 		return 0;
@@ -325,21 +328,21 @@ static int is_gpt_valid(int fd, uint64_t lba, gpt_header **gpt,
 		   printf("GUID Partition Table Header signature is wrong: %" PRIx64" != %" PRIx64 "\n",
 		   __le64_to_cpu((*gpt)->signature), GUID_PT_HEADER_SIGNATURE);
 		 */
-		free(*gpt);
-		*gpt = NULL;
-		return rc;
+		goto fail;
 	}
 
 	/* Check the GUID Partition Table Header CRC */
 	origcrc = __le32_to_cpu((*gpt)->header_crc32);
+	header_size = __le32_to_cpu((*gpt)->header_size);
+	if (header_size < 92 || header_size > (uint32_t)get_sector_size(fd)) {
+		// printf("GPT Header size (%" PRIu32 ") is invalid\n", header_size);
+		goto fail;
+	}
 	(*gpt)->header_crc32 = 0;
-	crc = efi_crc32(*gpt, __le32_to_cpu((*gpt)->header_size));
+	crc = efi_crc32(*gpt, header_size);
 	if (crc != origcrc) {
 		// printf( "GPTH CRC check failed, %x != %x.\n", origcrc, crc);
-		(*gpt)->header_crc32 = __cpu_to_le32(origcrc);
-		free(*gpt);
-		*gpt = NULL;
-		return 0;
+		goto fail;
 	}
 	(*gpt)->header_crc32 = __cpu_to_le32(origcrc);
 
@@ -350,27 +353,27 @@ static int is_gpt_valid(int fd, uint64_t lba, gpt_header **gpt,
 		printf( "my_lba % PRIx64 "x != lba %"PRIx64 "x.\n",
 				__le64_to_cpu((*gpt)->my_lba), lba);
 		 */
-		free(*gpt);
-		*gpt = NULL;
-		return 0;
+		goto fail;
 	}
 
 	/* Check that sizeof_partition_entry has the correct value */
 	if (__le32_to_cpu((*gpt)->sizeof_partition_entry) != sizeof(gpt_entry)) {
 		// printf("GUID partition entry size check failed.\n");
-		free(*gpt);
-		*gpt = NULL;
-		return 0;
+		goto fail;
 	}
 
 	if (!(*ptes = alloc_read_gpt_entries(fd, *gpt, ns))) {
-		free(*gpt);
-		*gpt = NULL;
-		return 0;
+		goto fail;
 	}
 
 	/* We're done, all's well */
 	return 1;
+
+fail:
+	free(*gpt);
+	*gpt = NULL;
+	*ptes = NULL;
+	return 0;
 }
 
 /**
@@ -529,8 +532,8 @@ static int find_valid_gpt(int fd, gpt_header **gpt, gpt_entry **ptes, unsigned i
 	if (aligned_malloc((void **)&legacymbr, get_sector_size(fd),
 			   &size) == 0) {
 		memset(legacymbr, 0, size);
-		read_lba(fd, 0, (uint8_t *) legacymbr, size);
-		good_pmbr = is_pmbr_valid(legacymbr);
+		if (read_lba(fd, 0, (uint8_t *)legacymbr, size))
+			good_pmbr = is_pmbr_valid(legacymbr);
 		free(legacymbr);
 		legacymbr=NULL;
 	}
