@@ -264,7 +264,14 @@ static void mpath_format_readfullstatus(struct prin_resp *pr_buff)
 	p =(unsigned char *)tempbuff;
 	ppbuff = (char *)pr_buff->prin_descriptor.prin_readfd.private_buffer;
 
-	for (k = 0; k < additional_length; k += num, p += num) {
+	for (k = 0;
+	     k < additional_length &&
+	     ppbuff + sizeof(struct prin_fulldescr) <
+		     (char *)pr_buff->prin_descriptor.prin_readfd.private_buffer +
+			     MPATH_MAX_PARAM_LEN &&
+	     fdesc_count < MPATH_MX_TIDS;
+	     k += num, p += num, ++fdesc_count,
+	    ppbuff += sizeof(struct prin_fulldescr)) {
 		memcpy(&fdesc.key, p, 8 );
 		fdesc.flag = p[12];
 		fdesc.scope_type =  p[13];
@@ -284,10 +291,12 @@ static void mpath_format_readfullstatus(struct prin_resp *pr_buff)
 
 		num = 24 + tid_len_len;
 		memcpy(ppbuff, &fdesc, sizeof(struct prin_fulldescr));
-		pr_buff->prin_descriptor.prin_readfd.descriptors[fdesc_count]= (struct prin_fulldescr *)ppbuff;
-		ppbuff += sizeof(struct prin_fulldescr);
-		++fdesc_count;
+		pr_buff->prin_descriptor.prin_readfd.descriptors[fdesc_count] =
+			(struct prin_fulldescr *)ppbuff;
 	}
+	if (k < additional_length)
+		condlog(1, "%s: READ FULL STATUS result truncated, count=%u",
+			__func__, fdesc_count);
 
 	pr_buff->prin_descriptor.prin_readfd.number_of_descriptor = fdesc_count;
 

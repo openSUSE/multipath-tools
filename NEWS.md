@@ -9,6 +9,45 @@ release. These bug fixes will be tracked in stable branches.
 
 See [README.md](README.md) for additional information.
 
+## multipath-tools 0.15.1, 2026/08
+
+### User-visible changes
+
+* The `preferredip=`parameter for the `iet` prioritizer has been generalized.
+  The new syntax is
+  ```
+  preferredip=<CIDR>:<Prio>[,<CIDR>:<Prio>,...]
+  ```
+  where `CIDR` is an IPv4 address block in CIDR format, e.g. `192.168.1.0/24`,
+  and `<Prio>` is the numeric priority to assign to IP addresses in this
+  block.  See the *multipath.conf(5)* man page for details. The syntax
+  `preferredip=<IP>` is still supported with the same semantics as before.
+
+
+### Vulnerability fixes
+
+* [DoS on mulipathd socket by blocking IPC send operations](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-hmcm-9cq4-r2xm)
+* [DoS on multipathd socket by exhausting connections]( https://github.com/opensvc/multipath-tools/security/advisories/GHSA-pvp6-c9p3-25fp)
+* [Heap Out-of-Bounds Read in Custom Format String Parser via Trailing `%`](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-g5mh-253r-jjw5)
+* [Heap out-of-bounds read in device-mapper-multipath ALUA RTPG parsing](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-pxwh-g75c-95pc)
+* [kpartx: Heap Out-of-Bounds Read in GPT Header Validation](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-p6rh-9x9j-3hvx)
+* [Path traversal in device-mapper-multipath failed_wwids management
+  ](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-gr7q-prfc-q636)
+* [libmpathpersist PRIN READ FULL STATUS parser — unbounded descriptor rewrite causes root heap overflow](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-hj7j-qr9h-5fv6)
+
+### Bug fixes
+
+* Fix a use-after-free error introduced by the fix for
+  [#152](https://github.com/opensvc/multipath-tools/issues/152) in 0.15.0.
+  Fixes [openSUSE#24](https://github.com/openSUSE/multipath-tools/pull/24).
+
+* When parsing the device-mapper table of a multipath device, the result for
+  path arguments was not checked for `NULL`. This happens if the kernel
+  returns an invalid table with missing path arguments. Fix it by adding
+  a NULL check (commit ac9fe05).
+  Fixes [#155](https://github.com/opensvc/multipath-tools/issues/155),
+  [#156](https://github.com/opensvc/multipath-tools/issues/156).
+
 ## multipath-tools 0.15.0, 2026/07
 
 ### User-visible changes
