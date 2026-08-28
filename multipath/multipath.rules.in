@@ -68,8 +68,18 @@ ENV{.SAVED_FM_WAIT_UNTIL}=="?*", GOTO="pretend_mpath"
 # the --on-active timeout.
 #
 # We must trigger an "add" event because LVM2 will only act on those.
+#
+# These units are ordered Before=initrd-cleanup.service so that a trigger that
+# is already in flight completes before the initrd switches root. They must
+# *not* use Conflicts=initrd-cleanup.service: unlike shutdown.target, whose
+# jobs are enqueued irreversibly, initrd-cleanup.service/start is a plain job
+# enqueued by initrd-parse-etc.service via OnSuccess=. Starting a unit that
+# conflicts with it therefore cancels that job instead of failing to start,
+# and OnSuccess= is never retried, so the initrd would hang forever with an
+# empty job queue. Stopping these units before switch-root is already
+# guaranteed by the isolate to initrd-switch-root.target.
 
-RUN+="@SYSDIR_BIN@/systemd-run --unit=cancel-multipath-wait-$kernel --description 'cancel waiting for multipath siblings of $kernel' --no-block --timer-property DefaultDependencies=no --timer-property Conflicts=shutdown.target --timer-property Before=shutdown.target --timer-property Conflicts=initrd-cleanup.service --timer-property Before=initrd-cleanup.service --timer-property AccuracySec=500ms --property DefaultDependencies=no --property Conflicts=shutdown.target --property Before=shutdown.target --property Conflicts=initrd-cleanup.service --property Before=initrd-cleanup.service --on-active=$env{FIND_MULTIPATHS_WAIT_UNTIL} @SYSDIR_BIN@/udevadm trigger --action=add $sys$devpath"
+RUN+="@SYSDIR_BIN@/systemd-run --unit=cancel-multipath-wait-$kernel --description 'cancel waiting for multipath siblings of $kernel' --no-block --timer-property DefaultDependencies=no --timer-property Conflicts=shutdown.target --timer-property Before=shutdown.target --timer-property Before=initrd-cleanup.service --timer-property AccuracySec=500ms --property DefaultDependencies=no --property Conflicts=shutdown.target --property Before=shutdown.target --property Before=initrd-cleanup.service --on-active=$env{FIND_MULTIPATHS_WAIT_UNTIL} @SYSDIR_BIN@/udevadm trigger --action=add $sys$devpath"
 
 LABEL="pretend_mpath"
 ENV{DM_MULTIPATH_DEVICE_PATH}="1"
