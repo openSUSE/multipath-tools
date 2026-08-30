@@ -1,5 +1,27 @@
 # multipath-tools Release Notes
 
+## Backported fixes from upstream 0.10.8
+
+### Vulnerability fixes
+
+* [DoS on mulipathd socket by blocking IPC send operations](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-hmcm-9cq4-r2xm)
+* [DoS on multipathd socket by exhausting connections]( https://github.com/opensvc/multipath-tools/security/advisories/GHSA-pvp6-c9p3-25fp)
+* [Heap Out-of-Bounds Read in Custom Format String Parser via Trailing `%`](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-g5mh-253r-jjw5)
+* [Heap out-of-bounds read in device-mapper-multipath ALUA RTPG parsing](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-pxwh-g75c-95pc)
+* [kpartx: Heap Out-of-Bounds Read in GPT Header Validation](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-p6rh-9x9j-3hvx)
+* [Path traversal in device-mapper-multipath failed_wwids management
+  ](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-gr7q-prfc-q636)
+* [libmpathpersist PRIN READ FULL STATUS parser — unbounded descriptor rewrite causes root heap overflow](https://github.com/opensvc/multipath-tools/security/advisories/GHSA-hj7j-qr9h-5fv6)
+
+### Bug fixes
+
+* When parsing the device-mapper table of a multipath device, the result for
+  path arguments was not checked for `NULL`. This happens if the kernel
+  returns an invalid table with missing path arguments. Fix it by adding
+  a NULL check.
+  Fixes [#155](https://github.com/opensvc/multipath-tools/issues/155),
+  [#156](https://github.com/opensvc/multipath-tools/issues/156).
+
 ## Backported fixes from upstream 0.9.9 ... 0.10.5
 
 * Updates to the built-in hardware table:

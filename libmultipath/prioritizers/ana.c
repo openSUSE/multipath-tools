@@ -77,23 +77,24 @@ static int get_ana_state(__u32 nsid, __u32 anagrpid, void *ana_log,
 	struct nvme_ana_group_desc *ana_desc;
 	size_t offset = sizeof(struct nvme_ana_rsp_hdr);
 	__u32 nr_nsids;
-	size_t nsid_buf_size;
+	__u64 nsid_buf_size;
 	int i;
 	unsigned int j;
 
 	for (i = 0; i < le16_to_cpu(hdr->ngrps); i++) {
-		ana_desc = base + offset;
 
-		offset += sizeof(*ana_desc);
-		if (offset > ana_log_len)
+		if (offset > ana_log_len || sizeof(*ana_desc) > ana_log_len - offset)
 			return -ANA_ERR_GETANAS_OVERFLOW;
+
+		ana_desc = base + offset;
+		offset += sizeof(*ana_desc);
 
 		nr_nsids = le32_to_cpu(ana_desc->nnsids);
 		nsid_buf_size = nr_nsids * sizeof(__le32);
 
-		offset += nsid_buf_size;
-		if (offset > ana_log_len)
+		if (nsid_buf_size > ana_log_len - offset)
 			return -ANA_ERR_GETANAS_OVERFLOW;
+		offset += nsid_buf_size;
 
 		for (j = 0; j < nr_nsids; j++) {
 			if (nsid == le32_to_cpu(ana_desc->nsids[j]))
@@ -102,7 +103,6 @@ static int get_ana_state(__u32 nsid, __u32 anagrpid, void *ana_log,
 
 		if (anagrpid != 0 && anagrpid == le32_to_cpu(ana_desc->grpid))
 			return ana_desc->state;
-
 	}
 	return -ANA_ERR_GETANAS_NOTFOUND;
 }
@@ -114,7 +114,7 @@ static int get_ana_info(struct path * pp)
 	struct nvme_id_ctrl ctrl;
 	struct nvme_id_ns ns;
 	void *ana_log;
-	size_t ana_log_len;
+	uint64_t ana_log_len;
 	bool is_anagrpid_const;
 
 	rc = nvme_id_ctrl_ana(pp->fd, &ctrl);
@@ -149,20 +149,24 @@ static int get_ana_info(struct path * pp)
 	} else
 		ana_log_len += le32_to_cpu(ctrl.mnan) * sizeof(__le32);
 
-	ana_log = malloc(ana_log_len);
+	if (ana_log_len > SIZE_MAX) {
+		condlog(3, "%s: truncating ana log from %zu to %" PRIu64,
+			__func__, SIZE_MAX, ana_log_len);
+		ana_log_len = SIZE_MAX;
+	}
+	ana_log = malloc((size_t)ana_log_len);
 	if (!ana_log)
 		return -ANA_ERR_NO_MEMORY;
 	pthread_cleanup_push(free, ana_log);
-	rc = nvme_ana_log(pp->fd, ana_log, ana_log_len,
+	rc = nvme_ana_log(pp->fd, ana_log, (size_t)ana_log_len,
 			  is_anagrpid_const ? NVME_ANA_LOG_RGO : 0);
 	if (rc) {
 		log_nvme_errcode(rc, pp->dev, "nvme_ana_log");
 		rc = -ANA_ERR_GETANALOG_FAILED;
 	} else
 		rc = get_ana_state(nsid,
-				   is_anagrpid_const ?
-				   le32_to_cpu(ns.anagrpid) : 0,
-				   ana_log, ana_log_len);
+				   is_anagrpid_const ? le32_to_cpu(ns.anagrpid) : 0,
+				   ana_log, (size_t)ana_log_len);
 	pthread_cleanup_pop(1);
 	if (rc >= 0)
 		condlog(4, "%s: ana state = %02x [%s]", pp->dev, rc,
