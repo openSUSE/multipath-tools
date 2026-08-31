@@ -84,6 +84,12 @@ enum {
  */
 #define MAX_CLIENTS (16384 - POLLFDS_BASE)
 
+/*
+ * Limit the number of non-root clients to guarantee that there is always
+ * space for root clients
+ */
+#define MAX_NON_ROOT_CLIENTS 256
+
 /* Compile-time error if POLLFD_CHUNK is too small */
 static __attribute__((unused)) char ___a[-(MIN_POLLS <= 0)];
 
@@ -108,16 +114,31 @@ static bool _socket_client_is_root(int fd)
 }
 
 /*
+ * kill off a dead client
+ */
+static void dead_client(struct client *c)
+{
+	int fd = c->fd;
+	list_del_init(&c->node);
+	c->fd = -1;
+	reset_strbuf(&c->reply);
+	if (c->cmdvec)
+		free_keys(c->cmdvec);
+	free(c);
+	close(fd);
+}
+
+/*
  * handle a new client joining
  */
-static void new_client(int ux_sock)
+static void new_client(int ux_sock, int non_root_clients)
 {
 	struct client *c;
 	struct sockaddr addr;
 	socklen_t len = sizeof(addr);
 	int fd;
 
-	fd = accept(ux_sock, &addr, &len);
+	fd = accept4(ux_sock, &addr, &len, SOCK_NONBLOCK);
 
 	if (fd == -1)
 		return;
@@ -131,24 +152,13 @@ static void new_client(int ux_sock)
 	c->fd = fd;
 	c->state = CLT_RECV;
 	c->is_root = _socket_client_is_root(c->fd);
+	if (!c->is_root && non_root_clients >= MAX_NON_ROOT_CLIENTS) {
+		dead_client(c);
+		return;
+	}
 
 	/* put it in our linked list */
 	list_add_tail(&c->node, &clients);
-}
-
-/*
- * kill off a dead client
- */
-static void dead_client(struct client *c)
-{
-	int fd = c->fd;
-	list_del_init(&c->node);
-	c->fd = -1;
-	reset_strbuf(&c->reply);
-	if (c->cmdvec)
-		free_keys(c->cmdvec);
-	free(c);
-	close(fd);
 }
 
 static void free_polls (void)
@@ -460,7 +470,8 @@ static int client_state_machine(struct client *c, struct vectors *vecs,
 			return STM_BREAK;
 		} else if (c->len < c->cmd_len) {
 			n = recv(c->fd, c->cmd + c->len, c->cmd_len - c->len, 0);
-			if (n <= 0 && errno != EINTR && errno != EAGAIN) {
+			if (n <= 0 && errno != EINTR && errno != EWOULDBLOCK &&
+			    errno != EAGAIN) {
 				condlog(1, "%s: cli[%d]: error in recv: %m",
 					__func__, c->fd);
 				c->error = -ECONNRESET;
@@ -517,6 +528,8 @@ static int client_state_machine(struct client *c, struct vectors *vecs,
 		return STM_BREAK;
 
 	case CLT_SEND:
+		if (!(revents & POLLOUT))
+			return STM_BREAK;
 		if (get_strbuf_len(&c->reply) == 0)
 			default_reply(c, c->error);
 
@@ -535,7 +548,8 @@ static int client_state_machine(struct client *c, struct vectors *vecs,
 
 			n = send(c->fd, buf + c->len, c->cmd_len - c->len, MSG_NOSIGNAL);
 			if (n == -1) {
-				if (!(errno == EAGAIN || errno == EINTR))
+				if (!(errno == EAGAIN ||
+				      errno == EWOULDBLOCK || errno == EINTR))
 					c->error = -ECONNRESET;
 			} else
 				c->len += n;
@@ -619,13 +633,15 @@ void *uxsock_listen(long ux_sock, void *trigger_data)
 	sigdelset(&mask, SIGUSR1);
 	while (1) {
 		struct client *c, *tmp;
-		int i, n_pfds, poll_count, num_clients;
+		int i, n_pfds, poll_count, num_clients, non_root_clients;
 		struct timespec __timeout, *timeout;
 
 		/* setup for a poll */
-		num_clients = 0;
+		num_clients = non_root_clients = 0;
 		list_for_each_entry(c, &clients, node) {
 			num_clients++;
+			if (!c->is_root)
+				non_root_clients++;
 		}
 		if (num_clients + POLLFDS_BASE > max_pfds) {
 			struct pollfd *new;
@@ -725,6 +741,8 @@ void *uxsock_listen(long ux_sock, void *trigger_data)
 
 			if (c->error == -ECONNRESET) {
 				condlog(4, "cli[%d]: disconnected", c->fd);
+				if (!c->is_root)
+					non_root_clients--;
 				dead_client(c);
 				if (i < n_pfds)
 					polls[i].fd = -1;
@@ -735,7 +753,7 @@ void *uxsock_listen(long ux_sock, void *trigger_data)
 
 		/* see if we got a new client */
 		if (polls[POLLFD_UX].revents & POLLIN) {
-			new_client(ux_sock);
+			new_client(ux_sock, non_root_clients);
 		}
 
 		/* handle inotify events on config files */
