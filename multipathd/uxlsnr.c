@@ -47,12 +47,15 @@ struct client {
 };
 
 #define MIN_POLLS 1023
+/*
+ * Limit the number of non-root clients to guarantee that there is always
+ * space for root clients
+ */
+#define MAX_NON_ROOT_CLIENTS 256
 
 LIST_HEAD(clients);
 pthread_mutex_t client_lock = PTHREAD_MUTEX_INITIALIZER;
 struct pollfd *polls;
-
-static bool _socket_client_is_root(int fd);
 
 static bool _socket_client_is_root(int fd)
 {
@@ -70,20 +73,37 @@ static bool _socket_client_is_root(int fd)
 }
 
 /*
+ * kill off a dead client
+ */
+static void dead_client(struct client *c)
+{
+	pthread_mutex_lock(&client_lock);
+	list_del_init(&c->node);
+	pthread_mutex_unlock(&client_lock);
+	close(c->fd);
+	c->fd = -1;
+	FREE(c);
+}
+
+/*
  * handle a new client joining
  */
-static void new_client(int ux_sock)
+static void new_client(int ux_sock, int non_root_clients)
 {
 	struct client *c;
 	struct sockaddr addr;
 	socklen_t len = sizeof(addr);
 	int fd;
 
-	fd = accept(ux_sock, &addr, &len);
+	fd = accept4(ux_sock, &addr, &len, SOCK_NONBLOCK);
 
 	if (fd == -1)
 		return;
 
+	if (non_root_clients >= MAX_NON_ROOT_CLIENTS && !_socket_client_is_root(fd)) {
+		close(fd);
+		return;
+	}
 	c = (struct client *)MALLOC(sizeof(*c));
 	if (!c) {
 		close(fd);
@@ -97,19 +117,6 @@ static void new_client(int ux_sock)
 	pthread_mutex_lock(&client_lock);
 	list_add_tail(&c->node, &clients);
 	pthread_mutex_unlock(&client_lock);
-}
-
-/*
- * kill off a dead client
- */
-static void dead_client(struct client *c)
-{
-	pthread_mutex_lock(&client_lock);
-	list_del_init(&c->node);
-	pthread_mutex_unlock(&client_lock);
-	close(c->fd);
-	c->fd = -1;
-	FREE(c);
 }
 
 void free_polls (void)
@@ -177,12 +184,14 @@ void * uxsock_listen(uxsock_trigger_fn uxsock_trigger, void * trigger_data)
 	sigaddset(&mask, SIGUSR1);
 	while (1) {
 		struct client *c, *tmp;
-		int i, poll_count, num_clients;
+		int i, poll_count, num_clients, non_root_clients;
 
 		/* setup for a poll */
 		pthread_mutex_lock(&client_lock);
-		num_clients = 0;
+		num_clients = non_root_clients = 0;
 		list_for_each_entry(c, &clients, node) {
+			if (!_socket_client_is_root(c->fd))
+				non_root_clients++;
 			num_clients++;
 		}
 		if (num_clients != old_clients) {
@@ -295,7 +304,7 @@ void * uxsock_listen(uxsock_trigger_fn uxsock_trigger, void * trigger_data)
 
 		/* see if we got a new client */
 		if (polls[0].revents & POLLIN) {
-			new_client(ux_sock);
+			new_client(ux_sock, non_root_clients);
 		}
 	}
 
