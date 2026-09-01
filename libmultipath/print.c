@@ -929,7 +929,8 @@ snprint_multipath_header (char * line, int len, const char * format)
 			NOPAD;
 			continue;
 		}
-		f++;
+		if (!(*f++))
+			break;
 
 		if (!(data = mpd_lookup(*f)))
 			continue; /* unknown wildcard */
@@ -962,7 +963,8 @@ _snprint_multipath (const struct gen_multipath * gmp,
 			NOPAD;
 			continue;
 		}
-		f++;
+		if (!(*f++))
+			break;
 
 		if (!(data = mpd_lookup(*f)))
 			continue;
@@ -996,7 +998,8 @@ snprint_path_header (char * line, int len, const char * format)
 			NOPAD;
 			continue;
 		}
-		f++;
+		if (!(*f++))
+			break;
 
 		if (!(data = pd_lookup(*f)))
 			continue; /* unknown wildcard */
@@ -1029,7 +1032,8 @@ _snprint_path (const struct gen_path * gp, char * line, int len,
 			NOPAD;
 			continue;
 		}
-		f++;
+		if (!(*f++))
+			break;
 
 		if (!(data = pd_lookup(*f)))
 			continue;
@@ -1064,7 +1068,8 @@ _snprint_pathgroup (const struct gen_pathgroup * ggp, char * line, int len,
 			NOPAD;
 			continue;
 		}
-		f++;
+		if (!(*f++))
+			break;
 
 		if (!(data = pgd_lookup(*f)))
 			continue;
