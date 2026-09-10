@@ -9,6 +9,24 @@ release. These bug fixes will be tracked in stable branches.
 
 See [README.md](README.md) for additional information.
 
+## multipath-tools 0.16.0, n/a
+
+### Bug fixes
+
+* Avoid potential deadlock during boot with `find_multipaths smart` caused by
+  `Conflicts: initrd-cleanup.service` in the transient timer units for
+  cancelling multipathd's wait for multipath devices to show up.
+  Bug introduced in 0.9.1. Commit 7101f24.
+* Fix a bug that would leave a map in a suspended state after a failed flush.
+  This could happen in some situations under heavy ioctl load. Moreover, retry
+  resuming the map in such cases if the resume failed in the first attempt.
+  Commits a4280d0, 29810888.
+
+### Other changes
+
+* Avoid problems with WWID mismatches after recent changes in udev-related
+  tools like `sg_inq` (`sg3_utils` commit 2fe1452) by unmangling device IDs.
+
 ## multipath-tools 0.15.1, 2026/08
 
 ### User-visible changes
