@@ -40,6 +40,47 @@ cherry-picked to these branches from the staging area. These branches are
 maintained by the multipath-tools maintainers on a best-effort basis. From
 time to time, minor releases will be made on these branches.
 
+Branches maintained by external parties
+---------------------------------------
+
+In the upstream repository, only the branches listed in
+[SECURITY.md](SECURITY.md) will receive backports of security fixes.
+
+Some older multipath-tools releases are maintained by 3rd parties.
+Please find some links below. **The upstream multipath-tools maintainers
+take no responsibility for the correctness of the code under these links**.
+
+### Branches maintained by @kwenqi
+
+multipath-tools contribuor @kwenqi maintains the following branches:
+
+- maint-0.8.4 (https://github.com/kwenqi/multipath-tools/tree/maint-0.8.4)
+- maint-0.8.7 (https://github.com/kwenqi/multipath-tools/tree/maint-0.8.7)
+- maint-0.9.5 (https://github.com/kwenqi/multipath-tools/tree/maint-0.9.5)
+
+### Red Hat / CentOS branches
+
+CentOS branches are maintained at https://gitlab.com/redhat/centos-stream/rpms/device-mapper-multipath/.
+They are based on the following upstream releases:
+
+* c8s: 0.8.4
+* c9s: 0.8.7
+* c10s: 0.9.9
+
+**Note:** These branches contain other backports and CentOS-specific patches besides
+security fixes.
+
+### SUSE branches
+
+multipath-tools releases from SUSE Linux can be found under https://github.com/openSUSE/multipath-tools.
+They are based on the following upstream releases:
+
+* sles15-sp4: 0.9.0
+* sles15-sp5: 0.9.4
+
+**Note:** These branches contain other backports and SUSE-specific patches besides
+security fixes.
+
 Reporting Bugs
 --------------
 
