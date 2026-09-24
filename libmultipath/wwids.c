@@ -25,7 +25,7 @@
  */
 
 static int
-lookup_wwid(FILE *f, char *wwid) {
+lookup_wwid(FILE *f, const char *wwid) {
 	int c;
 	char buf[LINE_MAX];
 	int count;
@@ -58,7 +58,7 @@ next:
 }
 
 static int
-write_out_wwid(int fd, char *wwid) {
+write_out_wwid(int fd, const char *wwid) {
 	int ret;
 	off_t offset;
 	char buf[WWID_SIZE + 3];
@@ -189,9 +189,8 @@ do_remove_wwid(int fd, char *str) {
 	}
 }
 
-
-int
-remove_wwid(char *wwid) {
+int remove_wwid(const char *wwid)
+{
 	int fd = -1;
 	int len, can_write;
 	char *str;
@@ -231,8 +230,7 @@ out:
 	return ret;
 }
 
-int
-check_wwids_file(char *wwid, int write_wwid)
+int check_wwids_file(const char *wwid, int write_wwid)
 {
 	int fd, can_write, found, ret;
 	FILE *f;
@@ -321,8 +319,7 @@ should_multipath(struct path *pp1, vector pathvec, vector mpvec)
 	return 1;
 }
 
-int
-remember_wwid(char *wwid)
+int remember_wwid(const char *wwid)
 {
 	int ret = check_wwids_file(wwid, 1);
 	if (ret < 0){
