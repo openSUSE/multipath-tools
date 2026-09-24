@@ -13,9 +13,9 @@
 "# Valid WWIDs:\n"
 
 int should_multipath(struct path *pp, vector pathvec, vector mpvec);
-int remember_wwid(char *wwid);
-int check_wwids_file(char *wwid, int write_wwid);
-int remove_wwid(char *wwid);
+int remember_wwid(const char *wwid);
+int check_wwids_file(const char *wwid, int write_wwid);
+int remove_wwid(const char *wwid);
 int replace_wwids(vector mp);
 
 enum {
