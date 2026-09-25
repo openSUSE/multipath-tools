@@ -37,6 +37,7 @@
 #include "print.h"
 #include "strbuf.h"
 #include "pgpolicies.h"
+#include "wwids.h"
 
 #define VPD_BUFLEN 4096
 
@@ -44,6 +45,97 @@ struct vpd_vendor_page vpd_vendor_pages[VPD_VP_ARRAY_SIZE] = {
 	[VPD_VP_UNDEF]	= { 0x00, "undef" },
 	[VPD_VP_HP3PAR]	= { 0xc0, "hp3par" },
 };
+
+/* from libdm/libdm-common.c; license: LGPL-2.1-only */
+static bool _is_whitelisted_char(char c)
+{
+	/*
+	 * Actually, DM supports any character in a device name.
+	 * This whitelist is just for proper integration with udev.
+	 */
+	if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') ||
+	    (c >= 'a' && c <= 'z') || strchr("#+-.:=@_", c) != NULL)
+		return true;
+
+	return false;
+}
+
+size_t maybe_unmangle_wwid(char new_wwid[WWID_SIZE], const char *wwid)
+{
+	char buf[WWID_SIZE], *dst;
+	const char *src;
+	bool mangled = false, invalid = false;
+	size_t rc, len;
+
+	if (!wwid) {
+		*new_wwid = '\0';
+		return 0;
+	}
+
+	/* this might be > WWID_SIZE - 1 */
+	len = strlen(wwid);
+	/*
+	 * A correctly mangled string doesn't contain invalid characters.
+	 * In particular, if the original string contained `\xXY`, it will
+	 * itself be mangled to '\x5cxXY`.
+	 */
+	/* clang-format off */
+	for (src = wwid, dst = buf;
+	     dst - buf < WWID_SIZE - 1 && *src;
+	     src++, dst++) {
+		/*clang-format on */
+		if (_is_whitelisted_char(*src)) {
+			*dst = *src;
+			continue;
+		}
+		if (*src == '\\') {
+			char hex[3], c;
+
+			/*
+			 * udev mangling always outputs 2-digit hex numbers
+			 * 1-digit would be unprintable, anyway
+			 */
+			if (src + 4 > wwid + len || *(src + 1) != 'x' ||
+			    sscanf(src + 2, "%2[A-Fa-f0-9]", hex) == 0 ||
+			    strlen(hex) != 2) {
+				condlog(3, "%s: wwid \"%s\" contains invalid mangle sequence \"%s\"",
+					__func__, wwid, src);
+				invalid = true;
+				break;
+			}
+			mangled = true;
+			src += 1 + strlen(hex);
+			c = strtol(hex, NULL, 16);
+			/* Allow non-ascii unicode, but avoid non-printable characters */
+			*dst = (c & 0x80) || isprint(c) ? c : '_';
+		} else {
+			condlog(3, "%s: wwid \"%s\" contains illegal character '%02x'",
+				__func__, wwid, (unsigned char)*src);
+			invalid = true;
+			break;
+		}
+	}
+
+	/*
+	 * 1. If we found an invalid character, it can't be mangled by udev,
+	 *    use original WWID.
+	 * 2. If we didn't found a `\xHH`, it isn't mangled, use original.
+	 * 3. If the unmangled WWID is known, use it.
+	 * 4. If the original WWID is known, use it.
+	 * 5. If in doubt, use the unmangled WWID.
+	 */
+	if (!invalid && mangled &&
+	    (!check_wwids_file(new_wwid, 0) || check_wwids_file(wwid, 0))) {
+		*dst = '\0';
+		rc = strlcpy(new_wwid, buf, WWID_SIZE);
+		condlog(3, "%s: unmangled WWID \"%s\" -> \"%s\"", __func__,
+			wwid, new_wwid);
+	} else {
+		rc = strlcpy(new_wwid, wwid, WWID_SIZE);
+		condlog(4, "%s: kept WWID \"%s\"", __func__, new_wwid);
+	}
+	return rc;
+}
 
 int
 alloc_path_with_pathinfo (struct config *conf, struct udev_device *udevice,
@@ -65,8 +157,7 @@ alloc_path_with_pathinfo (struct config *conf, struct udev_device *udevice,
 	if (!pp)
 		return PATHINFO_FAILED;
 
-	if (wwid)
-		strlcpy(pp->wwid, wwid, sizeof(pp->wwid));
+	maybe_unmangle_wwid(pp->wwid, wwid);
 
 	if (safe_sprintf(pp->dev, "%s", devname)) {
 		condlog(0, "pp->dev too small");
@@ -2163,8 +2254,8 @@ get_udev_uid(struct path * pp, const char *uid_attribute, struct udev_device *ud
 	value = udev_device_get_property_value(udev, uid_attribute);
 	if ((!value || strlen(value) == 0) && pp->can_use_env_uid)
 		value = getenv(uid_attribute);
-	if (value && strlen(value)) {
-		len = strlcpy(pp->wwid, value, WWID_SIZE);
+	if (value && *value) {
+		len = maybe_unmangle_wwid(pp->wwid, value);
 		if (len >= WWID_SIZE) {
 			len = fix_broken_nvme_wwid(pp, value, WWID_SIZE);
 			if (len > 0)
@@ -2224,7 +2315,7 @@ static ssize_t dasd_get_uid(struct path *pp)
 	if (p)
 		*p = '\0';
 
-	return strlcpy(pp->wwid, value, WWID_SIZE);
+	return maybe_unmangle_wwid(pp->wwid, value);
 }
 
 static ssize_t uid_fallback(struct path *pp, int path_state,
@@ -2254,6 +2345,8 @@ static ssize_t uid_fallback(struct path *pp, int path_state,
 					   sizeof(value));
 		if (!sysfs_attr_value_ok(len, sizeof(value)))
 			return -1;
+
+		/* WWID read from sysfs, unmangling is not necessary */
 		len = strlcpy(pp->wwid, value, WWID_SIZE);
 		if (len >= WWID_SIZE) {
 			len = fix_broken_nvme_wwid(pp, value,
