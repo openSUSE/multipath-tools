@@ -30,6 +30,7 @@
 
 struct config;
 
+size_t maybe_unmangle_wwid(char new_wwid[WWID_SIZE], const char *wwid);
 int path_discovery (vector pathvec, int flag);
 int path_get_tpgs(struct path *pp); /* This function never returns TPGS_UNDEF */
 int do_tur (char *);
