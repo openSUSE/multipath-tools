@@ -10,7 +10,7 @@ LIBDEPS += -L. -L $(mpathutildir) -L$(mpathcmddir) -lmultipath -lmpathutil -lmpa
 
 TESTS := uevent parser util dmevents hwtable blacklist unaligned vpd pgpolicy \
 	 alias directio valid devt mpathvalid strbuf sysfs features cli mapinfo runner \
-	 shared_ptr $(if $(MEMFD_SUPPORT),gpt)
+	 shared_ptr $(if $(MEMFD_SUPPORT),gpt) wwid-unmangle
 HELPERS := test-lib.o test-log.o
 
 .PRECIOUS: $(TESTS:%=%-test)
@@ -71,7 +71,8 @@ mapinfo-test_LIBDEPS = -lpthread -ldevmapper
 runner-test_LIBDEPS = -lpthread
 shared_ptr-test_LIBDEPS = -lpthread
 gpt-test_OBJDEPS := $(kpartxdir)/gpt.o $(kpartxdir)/crc32.o
-
+wwid-unmangle-test_OBJDEPS := $(multipathdir)/discovery.o
+wwid-unmangle-test_LIBDEPS := -lpthread
 
 %.o: %.c
 	@echo building $@ because of $?

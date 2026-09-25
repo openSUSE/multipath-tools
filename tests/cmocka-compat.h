@@ -13,4 +13,5 @@
 #define expect_int_value(f, x, y) expect_value(f, x, y)
 #define expect_uint_value(f, x, y) expect_value(f, x, y)
 #define assert_int_in_set(x, vals, count) assert_in_set(x, vals, count)
+#define will_return_int(f, x) will_return(f, x)
 #endif
