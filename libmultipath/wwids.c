@@ -4,8 +4,10 @@
 #include <string.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #include <fcntl.h>
 
 #include "util.h"
@@ -24,41 +26,44 @@
  * Copyright (c) 2010 Benjamin Marzinski, Redhat
  */
 
-static int
-lookup_wwid(FILE *f, const char *wwid) {
-	int c;
-	char buf[LINE_MAX];
-	int count;
+struct mem_map {
+	char *addr;
+	ssize_t len;
+};
 
-	while ((c = fgetc(f)) != EOF){
-		if (c != '/') {
-			if (fgets(buf, LINE_MAX, f) == NULL)
-				return 0;
-			else
-				continue;
-		}
-		count = 0;
-		while ((c = fgetc(f)) != '/') {
-			if (c == EOF)
-				return 0;
-			if (count >= WWID_SIZE - 1)
-				goto next;
-			if (wwid[count] == '\0')
-				goto next;
-			if (c != wwid[count++])
-				goto next;
-		}
-		if (wwid[count] == '\0')
-			return 1;
-next:
-		if (fgets(buf, LINE_MAX, f) == NULL)
-			return 0;
-	}
-	return 0;
+static void cleanup_mmap(struct mem_map *mm)
+{
+	if (mm->addr)
+		munmap(mm->addr, mm->len);
 }
 
-static int
-write_out_wwid(int fd, const char *wwid) {
+static bool lookup_wwid(int fd, const char *wwid)
+{
+	struct mem_map mm __attribute__((cleanup(cleanup_mmap))) = { .addr = 0 };
+	struct stat stb;
+	ssize_t wlen;
+	const char *line;
+
+	if (fstat(fd, &stb) != 0)
+		return false;
+
+	mm.len = stb.st_size;
+	mm.addr = mmap(NULL, stb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+	if (!mm.addr)
+		return false;
+
+	wlen = strlen(wwid);
+	for (line = mm.addr; line >= mm.addr && line < mm.addr + mm.len;
+	     line = memchr(line, '\n', mm.addr + mm.len - line) + 1)
+		if (line[0] == '/' && (line - mm.addr + 2 + wlen <= mm.len) &&
+		    line[wlen + 1] == '/' && !strncmp(wwid, line + 1, wlen))
+			return true;
+
+	return false;
+}
+
+static int write_out_wwid(int fd, const char *wwid)
+{
 	int ret;
 	off_t offset;
 	char buf[WWID_SIZE + 3];
@@ -245,7 +250,7 @@ int check_wwids_file(const char *wwid, int write_wwid)
 		close(fd);
 		return -1;
 	}
-	found = lookup_wwid(f, wwid);
+	found = lookup_wwid(fd, wwid);
 	if (found) {
 		ret = 0;
 		goto out;
