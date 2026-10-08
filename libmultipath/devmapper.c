@@ -1042,13 +1042,26 @@ int dm_flush_map__ (const char *mapname, int flags, int retries)
 			}
 			condlog(4, "multipath map %s removed", mapname);
 			return DM_FLUSH_OK;
-		} else if (dm_is_mpath(mapname) != DM_IS_MPATH_YES) {
-			condlog(4, "multipath map %s removed externally",
-				mapname);
-			return DM_FLUSH_OK; /* raced. someone else removed it */
 		} else {
-			condlog(2, "failed to remove multipath map %s",
-				mapname);
+			int is_mpath = dm_is_mpath(mapname);
+
+			if (is_mpath == DM_IS_MPATH_NO) {
+				condlog(4, "multipath map %s removed externally",
+					mapname);
+				return DM_FLUSH_OK; /* raced. someone else removed it */
+			}
+			/*
+			 * A query error (DM_IS_MPATH_ERR) must not be treated
+			 * as "removed externally": under an ioctl storm the
+			 * status query can transiently fail, and returning
+			 * DM_FLUSH_OK here would leave the map suspended.
+			 */
+			if (is_mpath == DM_IS_MPATH_ERR)
+				condlog(1, "%s: unable to verify map state after failed remove",
+					mapname);
+			else
+				condlog(2, "failed to remove multipath map %s",
+					mapname);
 			if ((flags & DMFL_SUSPEND) && queue_if_no_path != -1) {
 				dm_simplecmd_noflush(DM_DEVICE_RESUME,
 						     mapname, udev_flags);
