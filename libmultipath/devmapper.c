@@ -1062,10 +1062,22 @@ int dm_flush_map__ (const char *mapname, int flags, int retries)
 			else
 				condlog(2, "failed to remove multipath map %s",
 					mapname);
-			if ((flags & DMFL_SUSPEND) && queue_if_no_path != -1) {
-				dm_simplecmd_noflush(DM_DEVICE_RESUME,
-						     mapname, udev_flags);
-			}
+			/*
+			 * Resume the map suspended above. If it has an inactive
+			 * table, the resume makes dm try to swap to it; if that
+			 * swap fails dm leaves the map suspended with the
+			 * invalid table dropped, and a second resume reactivates
+			 * it with the old table (as dm_addmap_reload() does).
+			 * Retry the resume once, and log if it is still not
+			 * resumed so a leaked suspend is visible.
+			 */
+			if ((flags & DMFL_SUSPEND) && queue_if_no_path != -1 &&
+			    !dm_simplecmd_noflush(DM_DEVICE_RESUME, mapname,
+						  udev_flags) &&
+			    !dm_simplecmd_noflush(DM_DEVICE_RESUME, mapname,
+						  udev_flags))
+				condlog(1, "%s: failed to resume map after failed remove",
+					mapname);
 		}
 		if (retries)
 			sleep(1);
