@@ -709,6 +709,52 @@ void cleanup_reset_vec(struct vector_s **v)
 	vector_reset(*v);
 }
 
+static int sysfs_get_ro(struct path *pp)
+{
+	int ro;
+	char buff[3]; /* Either "0\n\0" or "1\n\0" */
+
+	if (!pp->udev)
+		return -1;
+
+	if (!sysfs_attr_get_value_ok(pp->udev, "ro", buff, sizeof(buff))) {
+		condlog(3, "%s: Cannot read ro attribute in sysfs", pp->dev);
+		return -1;
+	}
+
+	if (sscanf(buff, "%d\n", &ro) != 1 || ro < 0 || ro > 1) {
+		condlog(3, "%s: Cannot parse ro attribute", pp->dev);
+		return -1;
+	}
+
+	return ro;
+}
+
+/* A map must be loaded read-only if any of its paths is read-only. */
+static bool has_ro_path(vector paths)
+{
+	struct path *pp;
+	unsigned int i;
+
+	vector_foreach_slot (paths, pp, i) {
+		if (sysfs_get_ro(pp) == 1)
+			return true;
+	}
+	return false;
+}
+
+static bool map_has_ro_path(struct multipath *mpp)
+{
+	struct pathgroup *pgp;
+	unsigned int i;
+
+	vector_foreach_slot (mpp->pg, pgp, i) {
+		if (has_ro_path(pgp->paths))
+			return true;
+	}
+	return false;
+}
+
 static int
 update_map (struct multipath *mpp, struct vectors *vecs, int new_map)
 {
@@ -731,6 +777,14 @@ retry:
 		return 1;
 
 	mpp->action = ACT_RELOAD;
+
+	/*
+	 * This may be a delayed reload, and the paths' write protect
+	 * state may have changed since force_readonly was last set.
+	 * Recompute it from the current paths. mpp->paths is up to date
+	 * after adopt_paths(), while mpp->pg isn't until setup_map().
+	 */
+	mpp->force_readonly = has_ro_path(mpp->paths);
 
 	if (setup_map(mpp, &params, vecs)) {
 		condlog(0, "%s: failed to setup new map in update", mpp->alias);
@@ -1270,28 +1324,6 @@ out:
 	return ret;
 }
 
-static int
-sysfs_get_ro (struct path *pp)
-{
-	int ro;
-	char buff[3]; /* Either "0\n\0" or "1\n\0" */
-
-	if (!pp->udev)
-		return -1;
-
-	if (!sysfs_attr_get_value_ok(pp->udev, "ro", buff, sizeof(buff))) {
-		condlog(3, "%s: Cannot read ro attribute in sysfs", pp->dev);
-		return -1;
-	}
-
-	if (sscanf(buff, "%d\n", &ro) != 1 || ro < 0 || ro > 1) {
-		condlog(3, "%s: Cannot parse ro attribute", pp->dev);
-		return -1;
-	}
-
-	return ro;
-}
-
 /*
  * returns:
  * 0: added
@@ -1305,7 +1337,6 @@ ev_add_path (struct path * pp, struct vectors * vecs, int need_do_map)
 	int retries = 3;
 	int start_waiter = 0;
 	int ret;
-	int ro;
 	unsigned char prflag = PR_UNSET;
 
 	/*
@@ -1370,13 +1401,15 @@ rescan:
 			goto fail; /* leave path added to pathvec */
 	}
 
-	/* ro check - if new path is ro, force map to be ro as well */
-	ro = sysfs_get_ro(pp);
-	if (ro == 1)
-		mpp->force_readonly = 1;
-
 	if (!need_do_map)
 		return 0;
+
+	/*
+	 * Load the map read-only if any of its paths is read-only, not
+	 * just the one being added. mpp->paths is up to date after
+	 * adopt_paths(), while mpp->pg doesn't have the new paths yet.
+	 */
+	mpp->force_readonly = has_ro_path(mpp->paths);
 
 	if (!dm_map_present(mpp->alias)) {
 		mpp->action = ACT_CREATE;
@@ -1593,28 +1626,26 @@ finish_path_init(struct path *pp, struct vectors * vecs)
 	return -1;
 }
 
-static bool
-needs_ro_update(struct multipath *mpp, int ro)
+static bool needs_ro_update(struct multipath *mpp)
 {
-	struct pathgroup * pgp;
-	struct path * pp;
-	unsigned int i, j;
-
-	if (!mpp || ro < 0)
+	if (!mpp)
 		return false;
-	if (!has_dm_info(mpp))
-		return true;
-	if (mpp->dmi.read_only == ro)
+	if (!has_dm_info(mpp) && dm_get_info(mpp->alias, &mpp->dmi) != DMP_OK) {
+		condlog(2, "%s: failed to get dm info", mpp->alias);
 		return false;
-	if (ro == 1)
-		return true;
-	vector_foreach_slot (mpp->pg, pgp, i) {
-		vector_foreach_slot (pgp->paths, pp, j) {
-			if (sysfs_get_ro(pp) == 1)
-				return false;
-		}
 	}
-	return true;
+	mpp->force_readonly = map_has_ro_path(mpp);
+
+	/*
+	 * The map is read-only and has to stay so. dm has to reopen its
+	 * paths for any read-write reload anyway, so the flag isn't needed.
+	 */
+	if (mpp->force_readonly && mpp->dmi.read_only) {
+		mpp->force_readonly = 0;
+		return false;
+	}
+	/* The current map state doesn't match the paths' state. Update it. */
+	return (mpp->force_readonly != mpp->dmi.read_only);
 }
 
 int resize_map(struct multipath *mpp, unsigned long long size,
@@ -1652,7 +1683,7 @@ out:
 static int
 uev_update_path (struct uevent *uev, struct vectors * vecs)
 {
-	int ro, retval = 0, rc;
+	int retval = 0, rc;
 	struct path * pp;
 	struct config *conf;
 	int needs_reinit = 0;
@@ -1725,22 +1756,23 @@ uev_update_path (struct uevent *uev, struct vectors * vecs)
 			pthread_cleanup_pop(1);
 		}
 
-		ro = uevent_get_disk_ro(uev);
-		if (needs_ro_update(mpp, ro)) {
-			condlog(2, "%s: update path write_protect to '%d' (uevent)", uev->kernel, ro);
+		/*
+		 * The uevent only tells us that something changed. Check the
+		 * paths' ro state in sysfs, which the kernel updates before
+		 * sending the uevent, instead of trusting the uevent's DISK_RO.
+		 */
+		if (needs_ro_update(mpp)) {
+			condlog(2, "%s: update path write_protect to '%d' (uevent)",
+				uev->kernel, mpp->force_readonly);
 
 			if (mpp->wait_for_udev != UDEV_WAIT_DONE)
 				mpp->wait_for_udev = UDEV_WAIT_RELOAD;
 			else {
-				if (ro == 1)
-					pp->mpp->force_readonly = 1;
 				retval = reload_and_sync_map(mpp, vecs);
 				if (retval == 2)
 					condlog(2, "%s: map removed during reload", pp->dev);
-				else {
-					pp->mpp->force_readonly = 0;
+				else
 					condlog(2, "%s: map %s reloaded (retval %d)", uev->kernel, mpp->alias, retval);
-				}
 			}
 		}
 		if (auto_resize != AUTO_RESIZE_NEVER && mpp &&
