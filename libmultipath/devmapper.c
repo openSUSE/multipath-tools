@@ -539,10 +539,15 @@ static uint16_t build_udev_flags(const struct multipath *mpp, int reload)
 
 int dm_addmap_create (struct multipath *mpp, char *params)
 {
-	int ro;
+	int ro = mpp->force_readonly ? 1 : 0;
 	uint16_t udev_flags = build_udev_flags(mpp, 0);
 
-	for (ro = mpp->force_readonly ? 1 : 0; ro <= 1; ro++) {
+	/*
+	 * force_readonly only applies to this load. Clear it, so that it
+	 * can't affect later loads, even if this one fails.
+	 */
+	mpp->force_readonly = 0;
+	for (; ro <= 1; ro++) {
 		int err;
 
 		if (dm_addmap(DM_DEVICE_CREATE, TGT_MPATH, mpp, params, ro,
@@ -599,8 +604,15 @@ int dm_addmap_reload(struct multipath *mpp, char *params, int flush)
 		r = dm_simplecmd(DM_DEVICE_RESUME, mpp->alias,
 				 DMFL_NEED_SYNC | (flush ? 0 : DMFL_NO_FLUSH),
 				 udev_flags);
-	if (r)
+	if (r) {
+		/*
+		 * force_readonly only applies to this reload. If the reload
+		 * fails, the map keeps its old table, and the flag stays set
+		 * so that the next reload tries again.
+		 */
+		mpp->force_readonly = 0;
 		return r;
+	}
 
 	/* If the resume failed, dm will leave the device suspended, and
 	 * drop the new table, so doing a second resume will try using
