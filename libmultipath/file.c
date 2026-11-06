@@ -159,6 +159,11 @@ open_file(const char *file, int *can_write, const char *header)
 			goto fail;
 		}
 		fsync(fd);
+		if (lseek(fd, 0, SEEK_SET) < 0) {
+			condlog(0, "Cannot rewind file %s : %s", file,
+				strerror(errno));
+			goto fail;
+		}
 		condlog(3, "Initialized new file [%s]", file);
 	}
 
