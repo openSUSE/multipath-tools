@@ -33,6 +33,8 @@ void build_purge_list(struct vectors *vecs, struct list_head *tmpq);
  */
 void cleanup_purge_list(void *arg);
 
+void cleanup_global_purge_queue(void);
+
 /*
  * Main purge thread loop
  */

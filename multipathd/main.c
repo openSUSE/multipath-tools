@@ -3844,6 +3844,17 @@ static void cleanup_vecs(void)
 	gvecs = NULL;
 }
 
+static void cleanup_queues(void)
+{
+	/*
+	 * Shared queues must be cleaned only after every producer and
+	 * consumer has been joined. Worker cleanup handlers must not
+	 * free these globals while another thread may still access them.
+	 */
+	cleanup_global_purge_queue();
+	cleanup_global_uevq();
+}
+
 static void cleanup_threads(void)
 {
 	stop_io_err_stat_thread();
@@ -3947,6 +3958,7 @@ static void cleanup_rcu(void)
 static void cleanup_child(void)
 {
 	cleanup_threads();
+	cleanup_queues();
 	cleanup_vecs();
 	cleanup_bindings();
 	if (poll_dmevents)

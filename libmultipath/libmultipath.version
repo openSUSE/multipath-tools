@@ -246,3 +246,7 @@ local:
 	*;
 };
 
+LIBMULTIPATH_34.1.0 {
+global:
+	cleanup_global_uevq;
+} LIBMULTIPATH_34.0.0;

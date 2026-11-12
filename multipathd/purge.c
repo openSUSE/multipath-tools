@@ -235,7 +235,7 @@ void cleanup_purge_list(void *arg)
  * Cleanup handler for the global purge queue.
  * Used during shutdown to free any remaining queued items.
  */
-static void cleanup_global_purge_queue(void *arg __attribute__((unused)))
+void cleanup_global_purge_queue(void)
 {
 	pthread_mutex_lock(&purge_mutex);
 	cleanup_purge_list(&purge_queue);
@@ -268,7 +268,6 @@ void *purgeloop(void *ap __attribute__((unused)))
 	 * Cleanup handler for global purge_queue.
 	 * This handles items that were queued but not yet moved to purge_list.
 	 */
-	pthread_cleanup_push(cleanup_global_purge_queue, NULL);
 
 	while (1) {
 		LIST_HEAD(purge_list);
@@ -320,7 +319,6 @@ void *purgeloop(void *ap __attribute__((unused)))
 		pthread_cleanup_pop(0);
 	}
 
-	pthread_cleanup_pop(1);
 	pthread_cleanup_pop(1);
 	return NULL;
 }

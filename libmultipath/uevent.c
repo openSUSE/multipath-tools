@@ -503,7 +503,7 @@ static void cleanup_uevq(void *arg)
 	uevq_cleanup(arg);
 }
 
-static void cleanup_global_uevq(void *arg __attribute__((unused)))
+void cleanup_global_uevq(void)
 {
 	pthread_mutex_lock(uevq_lockp);
 	uevq_cleanup(&uevq);
@@ -726,7 +726,6 @@ int uevent_listen(struct udev *udev)
 		goto out;
 	}
 
-	pthread_cleanup_push(cleanup_global_uevq, NULL);
 	pthread_cleanup_push(cleanup_uevq, &uevlisten_tmp);
 	while (1) {
 		int fdcount, events;
@@ -754,7 +753,6 @@ int uevent_listen(struct udev *udev)
 		pthread_cond_signal(uev_condp);
 		pthread_mutex_unlock(uevq_lockp);
 	}
-	pthread_cleanup_pop(1);
 	pthread_cleanup_pop(1);
 out:
 	pthread_cleanup_pop(1);

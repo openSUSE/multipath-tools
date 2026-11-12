@@ -28,6 +28,8 @@ struct uevent {
 struct uevent *alloc_uevent(void);
 int is_uevent_busy(void);
 
+void cleanup_global_uevq(void);
+
 int uevent_listen(struct udev *udev);
 int uevent_dispatch(int (*store_uev)(struct uevent *, void * trigger_data),
 		    void * trigger_data);
