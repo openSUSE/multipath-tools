@@ -33,7 +33,7 @@
 	 * Copy this TEMPLATE to add new hardware.
 	 *
 	 * Keep only mandatory(.vendor and .product) and modified attributes.
-	 * Attributes with default values must be removed.
+	 * Attributes with default values must be omitted.
 	 * .vendor, .product, .revision and .bl_product are POSIX Extended regex.
 	 *
 	 * COMPANY_NAME
