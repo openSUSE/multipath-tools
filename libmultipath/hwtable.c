@@ -419,6 +419,12 @@ static struct hwentry default_hw[] = {
 		.pgpolicy      = MULTIBUS,
 		.no_path_retry = 30,
 	},
+	{
+		// PowerFlex NVMe
+		.vendor        = "NVME",
+		.product       = "powerflex",
+		.no_path_retry = NO_PATH_RETRY_QUEUE,
+	},
 	/*
 	 * Fujitsu
 	 */
