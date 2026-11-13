@@ -1,5 +1,5 @@
-# Copyright (c) SUSE LLC
 # SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (c) SUSE LLC
 
 TOPDIR := .
 CREATE_CONFIG := 1
