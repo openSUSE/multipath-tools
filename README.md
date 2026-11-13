@@ -5,6 +5,8 @@ multipath-tools for Linux
 
 https://github.com/opensvc/multipath-tools
 
+[![Packaging status](https://repology.org/badge/vertical-allrepos/multipath-tools.svg?exclude_unsupported=1&columns=4)](https://repology.org/project/multipath-tools)
+
 This package provides the following binaries to drive the Device Mapper multipathing driver:
 
 * multipath - Device mapper target autoconfig.
