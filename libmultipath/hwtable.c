@@ -468,6 +468,13 @@ static struct hwentry default_hw[] = {
 		.pgfailback    = -FAILBACK_IMMEDIATE,
 		.no_path_retry = 30,
 	},
+	{
+		// ETERNUS VX700 series
+		.vendor        = "FUJITSU",
+		.product       = "ETERNUS_VX700",
+		.pgpolicy      = MULTIBUS,
+		.no_path_retry = 120,
+	},
 	/*
 	 * Hitachi Vantara
 	 *
