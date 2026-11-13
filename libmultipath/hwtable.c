@@ -336,7 +336,7 @@ static struct hwentry default_hw[] = {
 		.no_path_retry = NO_PATH_RETRY_QUEUE,
 	},
 	{
-		/* DGC CLARiiON CX/AX / VNX and Unity */
+		/* DGC CLARiiON CX/AX / VNX, VNXe, and Unity */
 		.vendor        = "^DGC",
 		.product       = "^(RAID|DISK|VRAID)",
 		.bl_product    = "LUNZ",

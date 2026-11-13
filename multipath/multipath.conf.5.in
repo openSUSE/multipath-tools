@@ -531,7 +531,7 @@ Issue a \fITEST UNIT READY\fR command to a SCSI device.
 .I emc_clariion
 (Hardware-dependent)
 Query the DGC/EMC specific EVPD page 0xC0 to determine the path state
-for CLARiiON CX/AX and EMC VNX and Unity arrays families.
+for CLARiiON CX/AX and EMC VNX, VNXe, and Unity arrays families.
 .TP
 .I hp_sw
 (Hardware-dependent)
