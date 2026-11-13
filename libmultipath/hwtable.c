@@ -1453,6 +1453,15 @@ static struct hwentry default_hw[] = {
 		.no_path_retry = NO_PATH_RETRY_QUEUE,
 	},
 	/*
+	 * Western Digital
+	 */
+	{
+		// OpenFlex NVMe
+		.vendor        = "NVME",
+		.product       = "OpenFlex",
+		.no_path_retry = NO_PATH_RETRY_QUEUE,
+	},
+	/*
 	 * EOL
 	 */
 	{
