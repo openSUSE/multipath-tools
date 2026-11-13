@@ -342,7 +342,7 @@ static struct hwentry default_hw[] = {
 		.bl_product    = "LUNZ",
 		.pgpolicy      = GROUP_BY_PRIO,
 		.pgfailback    = -FAILBACK_IMMEDIATE,
-		.no_path_retry = (300 / DEFAULT_CHECKINT),
+		.no_path_retry = 60,
 		.checker_name  = EMC_CLARIION,
 		.prio_name     = PRIO_EMC,
 		.detect_checker = DETECT_CHECKER_OFF,
@@ -771,13 +771,13 @@ static struct hwentry default_hw[] = {
 		.vendor        = "AIX",
 		.product       = "VDASD",
 		.pgpolicy      = MULTIBUS,
-		.no_path_retry = (300 / DEFAULT_CHECKINT),
+		.no_path_retry = 60,
 	},
 	{
 		/* 3303 NVDISK */
 		.vendor        = "IBM",
 		.product       = "3303[ ]+NVDISK",
-		.no_path_retry = (300 / DEFAULT_CHECKINT),
+		.no_path_retry = 60,
 	},
 	{
 		/* AIX NVDISK */
@@ -785,7 +785,7 @@ static struct hwentry default_hw[] = {
 		.product       = "NVDISK",
 		.pgpolicy      = GROUP_BY_PRIO,
 		.pgfailback    = -FAILBACK_IMMEDIATE,
-		.no_path_retry = (300 / DEFAULT_CHECKINT),
+		.no_path_retry = 60,
 		.prio_name     = PRIO_ALUA,
 	},
 	/*
