@@ -539,7 +539,7 @@ static struct hwentry default_hw[] = {
 	{
 		/* DS4300 / FAStT600 */
 		.vendor        = "IBM",
-		.product       = "^1722-600",
+		.product       = "^1722",
 		.bl_product    = "Universal Xport",
 		.pgpolicy      = GROUP_BY_PRIO,
 		.checker_name  = RDAC,
@@ -561,7 +561,7 @@ static struct hwentry default_hw[] = {
 		.no_path_retry = 30,
 	},
 	{
-		/* DS3000 / DS3200 / DS3300 / DS3400 / Boot DS */
+		// DS3200 / DS3300 / DS3400 / BladeCenter Boot Disk System
 		.vendor        = "IBM",
 		.product       = "^1726",
 		.bl_product    = "Universal Xport",
@@ -585,9 +585,9 @@ static struct hwentry default_hw[] = {
 		.no_path_retry = 30,
 	},
 	{
-		/* DS3500 / DS3512 / DS3524 */
+		// DS3512 / DS3524
 		.vendor        = "IBM",
-		.product       = "^1746",
+		.product       = "^(1745|1746)",
 		.bl_product    = "Universal Xport",
 		.pgpolicy      = GROUP_BY_PRIO,
 		.checker_name  = RDAC,
@@ -633,7 +633,7 @@ static struct hwentry default_hw[] = {
 		.no_path_retry = 30,
 	},
 	{
-		/* DS5000 / DS5100 / DS5300 / DCS3700 */
+		// DS5100 / DS5300 / DCS3700
 		.vendor        = "IBM",
 		.product       = "^1818",
 		.bl_product    = "Universal Xport",
@@ -669,7 +669,8 @@ static struct hwentry default_hw[] = {
 		.no_path_retry = 30,
 	},
 	{
-		/* Enterprise Storage Server(ESS) / Shark family */
+		// Versatile Storage Server (VSS)
+		// Enterprise Storage Server (ESS) (Shark family)
 		.vendor        = "IBM",
 		.product       = "^2105",
 		.no_path_retry = NO_PATH_RETRY_QUEUE,
