@@ -412,6 +412,13 @@ static struct hwentry default_hw[] = {
 		.pgpolicy      = MULTIBUS,
 		.no_path_retry = 30,
 	},
+		// EMC Celerra
+	{
+		.vendor        = "EMC",
+		.product       = "Celerra",
+		.pgpolicy      = MULTIBUS,
+		.no_path_retry = 30,
+	},
 	/*
 	 * Fujitsu
 	 */
