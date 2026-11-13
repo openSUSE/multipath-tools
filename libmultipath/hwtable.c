@@ -1035,7 +1035,7 @@ static struct hwentry default_hw[] = {
 	 * Intel
 	 */
 	{
-		/* Multi-Flex */
+		// Modular Server (IMS) MFSYS25/35
 		.vendor        = "(Intel|INTEL)",
 		.product       = "Multi-Flex",
 		.bl_product    = "VTrak V-LUN",
