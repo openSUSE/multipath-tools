@@ -1013,7 +1013,7 @@ static struct hwentry default_hw[] = {
 	/*
 	 * Pivot3
 	 *
-	 * Maintainer: Bart Brooks <bartb@pivot3.com>
+	 * Maintainer: Bart Brooks <Bart.Brooks@Quantum.Com>
 	 */
 	{
 		/* Raige */
