@@ -33,7 +33,7 @@ multipathd \- Multipath daemon.
 .RB [\| \-v\ \c
 .IR verbosity \|]
 .B -k
-
+.
 .\" ----------------------------------------------------------------------------
 .SH DESCRIPTION
 .\" ----------------------------------------------------------------------------
@@ -41,7 +41,7 @@ multipathd \- Multipath daemon.
 The \fBmultipathd\fR daemon is in charge of checking for failed paths. When this
 happens, it will reconfigure the multipath map the path belongs to, so that this
 map regains its maximum performance and redundancy.
-
+.PP
 With the \fB-k\fR option, \fBmultipathd\fR acts as a client utility that
 sends commands to a running instance of the multipathd daemon (see
 \fBCOMMANDS\fR below).
@@ -77,7 +77,7 @@ multipathd executes the given command (see \fBCOMMANDS\fR below). If the
 command contains whitespace or shell special characters, it needs to be quoted
 like in \fImultipathd -k'show topology'\fR. No whitespace is allowed between
 the \fB-k\fR and the command string.
-
+.br
 Commands can also be issued without using \fB-k\fR. In this case, the command
 string should not be quoted. Command arguments that contain whitespace or
 special characters still need to be quoted, like in \fImultipathd show paths
@@ -115,7 +115,7 @@ socket file can be useful to communicate with multipathd from different
 namespaces since it can be bind mounted in them, unlike the abstract namespace
 socket. Multipathd will accept \fBlist|show\fR commands from any user. All
 other commands must be issued by root.
-
+.PP
 It is possible to change the sockets that multipathd listens on. If
 \fImultipathd.socket\fR is running, multipathd will use the sockets it listens
 on.  A maximum of two sockets can be defined by \fImultipathd.socket\fR, and by
