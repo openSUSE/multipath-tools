@@ -49,26 +49,64 @@ jobs:
           make -Orecurse -j$(nproc)
           READLINE=${{ matrix.rl }} OPTFLAGS="$OPT"
       - name: test
+        id: test
         run: >
           make -Orecurse -j$(nproc)
           OPTFLAGS="$OPT" test
+        continue-on-error: true
       - name: valgrind-test
         id: valgrind
         run: >
           make -Orecurse -j$(nproc)
           OPTFLAGS="$OPT" valgrind-test
         continue-on-error: true
-      - name: valgrind-results
-        run: cat tests/*.vgr
-      - name: fail if valgrind failed
-        run: /bin/false
-        if: steps.valgrind.outcome != 'success'
       - name: clean-nonroot-artifacts
         run: rm -f tests/dmevents.out tests/directio.out
       - name: root-test
+        id: root
         run: sudo make DIO_TEST_DEV=/dev/zram$ZRAM test
+        continue-on-error: true
       - name: kpartx-test
+        id: kpartx
         run: sudo make -C kpartx test
+        continue-on-error: true
+      - name: create test outputs
+        run: make test-progs.tar test-outputs.tar
+        if: >
+          steps.test.outcome != 'success' ||
+          steps.valgrind.outcome != 'success' ||
+          steps.root.outcome != 'success' ||
+          steps.kpartx.outcome != 'success'
+      - name: Upload test programs
+        uses: actions/upload-artifact@v7
+        with:
+          name: resolute-progs-${{ matrix.cc }}-${{ matrix.rl }}
+          path: test-progs.tar
+          overwrite: true
+        if: >
+          steps.test.outcome != 'success' ||
+          steps.valgrind.outcome != 'success' ||
+          steps.root.outcome != 'success' ||
+          steps.kpartx.outcome != 'success'
+      - name: Upload test outputs
+        uses: actions/upload-artifact@v7
+        with:
+          name: resolute-outputs-${{ matrix.cc }}-${{ matrix.rl }}
+          path: test-outputs.tar
+          overwrite: true
+        if: >
+          steps.test.outcome != 'success' ||
+          steps.valgrind.outcome != 'success' ||
+          steps.root.outcome != 'success' ||
+          steps.kpartx.outcome != 'success'
+      - name: fail if any test failed
+        run: /bin/false
+        if: >
+          steps.test.outcome != 'success' ||
+          steps.valgrind.outcome != 'success' ||
+          steps.root.outcome != 'success' ||
+          steps.kpartx.outcome != 'success'
+
   noble:
     runs-on: ubuntu-24.04
     strategy:
@@ -96,19 +134,56 @@ jobs:
       - name: build
         run: make -Orecurse -j$(nproc) READLINE=${{ matrix.rl }}
       - name: test
+        id: test
         run: make -Orecurse -j$(nproc) test
+        continue-on-error: true
       - name: valgrind-test
         id: valgrind
         run: make -Orecurse -j$(nproc) valgrind-test
         continue-on-error: true
-      - name: valgrind-results
-        run: cat tests/*.vgr
-      - name: fail if valgrind failed
-        run: /bin/false
-        if: steps.valgrind.outcome != 'success'
       - name: clean-nonroot-artifacts
         run: rm -f tests/dmevents.out tests/directio.out
       - name: root-test
+        id: root
         run: sudo make DIO_TEST_DEV=/dev/ram0 test
+        continue-on-error: true
       - name: kpartx-test
+        id: kpartx
         run: sudo make -C kpartx test
+        continue-on-error: true
+      - name: create test outputs
+        run: make test-progs.tar test-outputs.tar
+        if: >
+          steps.test.outcome != 'success' ||
+          steps.valgrind.outcome != 'success' ||
+          steps.root.outcome != 'success' ||
+          steps.kpartx.outcome != 'success'
+      - name: Upload test programs
+        uses: actions/upload-artifact@v7
+        with:
+          name: noble-progs-${{ matrix.cc }}-${{ matrix.rl }}
+          path: test-progs.tar
+          overwrite: true
+        if: >
+          steps.test.outcome != 'success' ||
+          steps.valgrind.outcome != 'success' ||
+          steps.root.outcome != 'success' ||
+          steps.kpartx.outcome != 'success'
+      - name: Upload test outputs
+        uses: actions/upload-artifact@v7
+        with:
+          name: noble-outputs-${{ matrix.cc }}-${{ matrix.rl }}
+          path: test-outputs.tar
+          overwrite: true
+        if: >
+          steps.test.outcome != 'success' ||
+          steps.valgrind.outcome != 'success' ||
+          steps.root.outcome != 'success' ||
+          steps.kpartx.outcome != 'success'
+      - name: fail if any test failed
+        run: /bin/false
+        if: >
+          steps.test.outcome != 'success' ||
+          steps.valgrind.outcome != 'success' ||
+          steps.root.outcome != 'success' ||
+          steps.kpartx.outcome != 'success'
