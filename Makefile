@@ -129,7 +129,9 @@ valgrind-test:	all
 
 TEST-ARTIFACTS := config.mk Makefile Makefile.inc \
 	$(LIB_BUILDDIRS:%=%/*.so*) $(PLUGIN_BUILDDIRS:%=%/*.so) \
-	tests/Makefile tests/*.so* tests/lib/* tests/*-test tests/runner-test.sh
+	tests/Makefile tests/*.so* tests/lib/* tests/*-test tests/runner-test.sh \
+	libmpathutil/*.so* libmpathcmd/*.so* libmpathvalid/*.so* libmpathpersist/*.so* \
+	libmultipath/prioritizers/*.so libmultipath/checkers/*.so libmultipath/foreign/*.so
 
 test-progs.cpio: test-progs
 	$(Q)printf "%s\\n" $(TEST-ARTIFACTS) | cpio -o -H crc >$@
