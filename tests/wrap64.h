@@ -47,6 +47,20 @@
 #define REAL_OPEN CONCAT2(__real_, WRAP_OPEN_NAME)
 
 /*
+ * Likewise, with clang fortification, poll() resolves to __poll_chk()
+ * if the size of the fds buffer is known at the call site.
+ */
+#if defined(__GLIBC__) && __GLIBC_PREREQ(2, 39) && \
+	defined(__clang__) && __clang__ == 1 && \
+	defined(__fortify_use_clang) && __fortify_use_clang == 1
+#define WRAP_POLL_NAME __poll_chk
+#else
+#define WRAP_POLL_NAME poll
+#endif
+#define WRAP_POLL CONCAT2(__wrap_, WRAP_POLL_NAME)
+#define REAL_POLL CONCAT2(__real_, WRAP_POLL_NAME)
+
+/*
  * fcntl() needs special treatment; fcntl64() has been introduced in 2.28.
  * https://savannah.gnu.org/forum/forum.php?forum_id=9205
  */

@@ -293,7 +293,7 @@ void __wrap_dm_task_destroy(struct dm_task *dmt)
 	}
 }
 
-int __wrap_poll(struct pollfd *fds, nfds_t nfds, int timeout)
+int WRAP_POLL(struct pollfd *fds, nfds_t nfds, int timeout)
 {
 	assert_uint_equal(nfds, 1);
 	assert_int_equal(timeout, -1);
@@ -628,7 +628,7 @@ static void test_dmevent_loop_bad0(void **state)
 	will_return(__wrap_dm_geteventnr, 0);
 	assert_int_equal(watch_dmevents("foo"), 0);
 	assert_int_equal(add_dm_device_event("foo", 1, 6), 0);
-	will_return(__wrap_poll, 0);
+	wrap_will_return(WRAP_POLL, 0);
 	assert_int_equal(dmevent_loop(), 1);
 	dev_evt = find_dmevents("foo");
 	assert_ptr_not_equal(dev_evt, NULL);
@@ -649,7 +649,7 @@ static void test_dmevent_loop_bad1(void **state)
 	if (datap == NULL)
 		skip();
 
-	will_return(__wrap_poll, 1);
+	wrap_will_return(WRAP_POLL, 1);
 	wrap_will_return(WRAP_IOCTL, -1);
 	assert_int_equal(dmevent_loop(), 1);
 	dev_evt = find_dmevents("foo");
@@ -671,7 +671,7 @@ static void test_dmevent_loop_bad2(void **state)
 	if (datap == NULL)
 		skip();
 
-	will_return(__wrap_poll, 1);
+	wrap_will_return(WRAP_POLL, 1);
 	wrap_will_return(WRAP_IOCTL, 0);
 	will_return(__wrap_libmp_dm_task_create, NULL);
 	assert_int_equal(dmevent_loop(), 1);
@@ -695,7 +695,7 @@ static void test_dmevent_loop_good0(void **state)
 
 	remove_all_dm_device_events();
 	unwatch_all_dmevents();
-	will_return(__wrap_poll, 1);
+	wrap_will_return(WRAP_POLL, 1);
 	wrap_will_return(WRAP_IOCTL, 0);
 	will_return(__wrap_libmp_dm_task_create, &data);
 	will_return(__wrap_dm_task_run, 1);
@@ -730,7 +730,7 @@ static void test_dmevent_loop_good1(void **state)
 	assert_int_equal(watch_dmevents("xyzzy"), 0);
 	assert_int_equal(add_dm_device_event("foo", 1, 6), 0);
 	assert_int_equal(remove_dm_device_event("xyzzy"), 0);
-	will_return(__wrap_poll, 1);
+	wrap_will_return(WRAP_POLL, 1);
 	wrap_will_return(WRAP_IOCTL, 0);
 	will_return(__wrap_libmp_dm_task_create, &data);
 	will_return(__wrap_dm_task_run, 1);
@@ -777,7 +777,7 @@ static void test_dmevent_loop_good2(void **state)
 	will_return(__wrap_dm_geteventnr, 0);
 	assert_int_equal(watch_dmevents("baz"), 0);
 	assert_int_equal(add_dm_device_event("baz", 1, 14), 0);
-	will_return(__wrap_poll, 1);
+	wrap_will_return(WRAP_POLL, 1);
 	wrap_will_return(WRAP_IOCTL, 0);
 	will_return(__wrap_libmp_dm_task_create, &data);
 	will_return(__wrap_dm_task_run, 1);
@@ -820,7 +820,7 @@ static void test_dmevent_loop_good3(void **state)
 
 	assert_int_equal(remove_dm_device_event("foo"), 0);
 	unwatch_dmevents("bar");
-	will_return(__wrap_poll, 1);
+	wrap_will_return(WRAP_POLL, 1);
 	wrap_will_return(WRAP_IOCTL, 0);
 	will_return(__wrap_libmp_dm_task_create, &data);
 	will_return(__wrap_dm_task_run, 1);
