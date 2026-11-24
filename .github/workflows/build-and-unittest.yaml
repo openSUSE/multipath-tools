@@ -29,7 +29,7 @@ jobs:
           make pkg-config valgrind
           libdevmapper-dev libreadline-dev libaio-dev libsystemd-dev
           libudev-dev libjson-c-dev liburcu-dev libcmocka-dev libedit-dev
-          libmount-dev linux-modules-extra-$(uname -r)
+          libmount-dev
       - name: mpath
         run: sudo modprobe dm_multipath
       - name: zram
@@ -90,7 +90,7 @@ jobs:
           make pkg-config valgrind
           libdevmapper-dev libreadline-dev libaio-dev libsystemd-dev
           libudev-dev libjson-c-dev liburcu-dev libcmocka-dev libedit-dev
-          libmount-dev linux-modules-extra-$(uname -r)
+          libmount-dev
       - name: set CC
         run: echo CC=${{ matrix.cc }} >> $GITHUB_ENV
       - name: build
