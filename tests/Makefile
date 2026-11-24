@@ -10,7 +10,7 @@ LIBDEPS += -L. -L $(mpathutildir) -L$(mpathcmddir) -lmultipath -lmpathutil -lmpa
 
 TESTS := uevent parser util dmevents hwtable blacklist unaligned vpd pgpolicy \
 	 alias directio valid devt mpathvalid strbuf sysfs features cli mapinfo runner \
-	 shared_ptr $(if $(MEMFD_SUPPORT),gpt) wwid-unmangle
+	 shared_ptr $(if $(MEMFD_SUPPORT),gpt) wwid-unmangle devmapper
 HELPERS := test-lib.o test-log.o
 
 .PRECIOUS: $(TESTS:%=%-test)
@@ -67,6 +67,7 @@ sysfs-test_LIBDEPS := -ludev -lpthread -ldl
 features-test_LIBDEPS := -ludev -lpthread
 features-test_OBJDEPS := $(mpathutildir)/mt-libudev.o
 cli-test_OBJDEPS := $(daemondir)/cli.o
+devmapper-test_LIBDEPS = -lpthread -ldevmapper
 mapinfo-test_LIBDEPS = -lpthread -ldevmapper
 runner-test_LIBDEPS = -lpthread
 shared_ptr-test_LIBDEPS = -lpthread
