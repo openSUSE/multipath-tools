@@ -12,8 +12,8 @@ on:
       - queue
       - 'stable-*'
 jobs:
-  jammy:
-    runs-on: ubuntu-24.04
+  resolute:
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
