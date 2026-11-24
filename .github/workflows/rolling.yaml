@@ -67,11 +67,15 @@ jobs:
         run: |
           docker run -w /build -v${{ github.workspace }}:/build \
             ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
-            CC=${{ matrix.compiler }} READLINE=libreadline -j$(nproc) -Orecurse test
+            CC=${{ matrix.compiler }} READLINE=libreadline \
+            -j$(nproc) -Orecurse test
         continue-on-error: true
-      - name: create binary archive
-        run: make test-progs.tar
-        if: steps.test.outcome != 'success'
+      - name: create test program archive
+        run: |
+          docker run -w /build -v${{ github.workspace }}:/build \
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
+            CC=${{ matrix.compiler }} READLINE=libreadline \
+            -j$(nproc) -Orecurse test-progs.tar
       - name: upload binary archive
         uses: actions/upload-artifact@v7
         with:
