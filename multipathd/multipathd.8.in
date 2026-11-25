@@ -77,7 +77,7 @@ multipathd executes the given command (see \fBCOMMANDS\fR below). If the
 command contains whitespace or shell special characters, it needs to be quoted
 like in \fImultipathd -k'show topology'\fR. No whitespace is allowed between
 the \fB-k\fR and the command string.
-.br
+.IP
 Commands can also be issued without using \fB-k\fR. In this case, the command
 string should not be quoted. Command arguments that contain whitespace or
 special characters still need to be quoted, like in \fImultipathd show paths
