@@ -12,13 +12,18 @@ on:
       - queue
       - 'stable-*'
 jobs:
-  jammy:
-    runs-on: ubuntu-24.04
+  build-and-ci:
     strategy:
       fail-fast: false
       matrix:
         rl: ['', 'libreadline', 'libedit']
         cc: [ gcc, clang ]
+        runner:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+          - ubuntu-26.04
+          - ubuntu-26.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
       - name: update
@@ -29,7 +34,7 @@ jobs:
           make pkg-config valgrind
           libdevmapper-dev libreadline-dev libaio-dev libsystemd-dev
           libudev-dev libjson-c-dev liburcu-dev libcmocka-dev libedit-dev
-          libmount-dev linux-modules-extra-$(uname -r)
+          libmount-dev
       - name: mpath
         run: sudo modprobe dm_multipath
       - name: zram
@@ -49,66 +54,62 @@ jobs:
           make -Orecurse -j$(nproc)
           READLINE=${{ matrix.rl }} OPTFLAGS="$OPT"
       - name: test
+        id: test
         run: >
           make -Orecurse -j$(nproc)
           OPTFLAGS="$OPT" test
+        continue-on-error: true
       - name: valgrind-test
         id: valgrind
         run: >
           make -Orecurse -j$(nproc)
           OPTFLAGS="$OPT" valgrind-test
         continue-on-error: true
-      - name: valgrind-results
-        run: cat tests/*.vgr
-      - name: fail if valgrind failed
-        run: /bin/false
-        if: steps.valgrind.outcome != 'success'
-      - name: clean-nonroot-artifacts
-        run: rm -f tests/dmevents.out tests/directio.out
+      - name: rename non-root artifacts
+        run: |
+          mv -f tests/dmevents.out tests/dmevents-noroot.out
+          mv -f tests/directio.out tests/directio-noroot.out
       - name: root-test
+        id: root
         run: sudo make DIO_TEST_DEV=/dev/zram$ZRAM test
-      - name: kpartx-test
-        run: sudo make -C kpartx test
-  noble:
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        rl: ['', 'libreadline', 'libedit']
-        cc: [ gcc, clang ]
-    steps:
-      - uses: actions/checkout@v7
-      - name: mpath
-        run: sudo modprobe dm_multipath
-      - name: brd
-        run: sudo modprobe brd rd_nr=1 rd_size=65536
-      - name: update
-        run: sudo apt-get update
-      - name: dependencies
-        run: >
-          sudo apt-get install --yes gcc-10
-          make pkg-config valgrind
-          libdevmapper-dev libreadline-dev libaio-dev libsystemd-dev
-          libudev-dev libjson-c-dev liburcu-dev libcmocka-dev libedit-dev
-          libmount-dev linux-modules-extra-$(uname -r)
-      - name: set CC
-        run: echo CC=${{ matrix.cc }} >> $GITHUB_ENV
-      - name: build
-        run: make -Orecurse -j$(nproc) READLINE=${{ matrix.rl }}
-      - name: test
-        run: make -Orecurse -j$(nproc) test
-      - name: valgrind-test
-        id: valgrind
-        run: make -Orecurse -j$(nproc) valgrind-test
         continue-on-error: true
-      - name: valgrind-results
-        run: cat tests/*.vgr
-      - name: fail if valgrind failed
-        run: /bin/false
-        if: steps.valgrind.outcome != 'success'
-      - name: clean-nonroot-artifacts
-        run: rm -f tests/dmevents.out tests/directio.out
-      - name: root-test
-        run: sudo make DIO_TEST_DEV=/dev/ram0 test
       - name: kpartx-test
+        id: kpartx
         run: sudo make -C kpartx test
+        continue-on-error: true
+      - name: create test outputs
+        run: make test-progs.tar test-outputs.tar
+        if: >
+          steps.test.outcome != 'success' ||
+          steps.valgrind.outcome != 'success' ||
+          steps.root.outcome != 'success' ||
+          steps.kpartx.outcome != 'success'
+      - name: Upload test programs
+        uses: actions/upload-artifact@v7
+        with:
+          name: progs-${{ matrix.cc }}-${{ matrix.rl }}-${{ matrix.runner }}
+          path: test-progs.tar
+          overwrite: true
+        if: >
+          steps.test.outcome != 'success' ||
+          steps.valgrind.outcome != 'success' ||
+          steps.root.outcome != 'success' ||
+          steps.kpartx.outcome != 'success'
+      - name: Upload test outputs
+        uses: actions/upload-artifact@v7
+        with:
+          name: outputs-${{ matrix.cc }}-${{ matrix.rl }}-${{ matrix.runner }}
+          path: test-outputs.tar
+          overwrite: true
+        if: >
+          steps.test.outcome != 'success' ||
+          steps.valgrind.outcome != 'success' ||
+          steps.root.outcome != 'success' ||
+          steps.kpartx.outcome != 'success'
+      - name: fail if any test failed
+        run: /bin/false
+        if: >
+          steps.test.outcome != 'success' ||
+          steps.valgrind.outcome != 'success' ||
+          steps.root.outcome != 'success' ||
+          steps.kpartx.outcome != 'success'

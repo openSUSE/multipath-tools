@@ -64,12 +64,11 @@ jobs:
             ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
             -j$(nproc) -Orecurse V=1 READLINE=$READLINE test
         continue-on-error: true
-
-      - name: create test-progs.tar
+      - name: Create test program archive
         run: |
           docker run -w ${{ github.workspace }} -v${{ github.workspace }}:${{ github.workspace }} \
-            ghcr.io/mwilck/multipath-build-${{ matrix.os }} test-progs.tar
-
+            ghcr.io/mwilck/multipath-build-${{ matrix.os }} \
+            -j$(nproc) -Orecurse V=1 READLINE=$READLINE test-progs.tar
       - name: upload test-progs.tar
         uses: actions/upload-artifact@v7
         with:
